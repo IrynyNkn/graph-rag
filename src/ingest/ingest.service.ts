@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { parseJsonSafe } from '../common/parse-json.js';
+import { EmbeddingService } from '../embedding/embedding.service.js';
+import { buildEntityDescription } from '../graph/describe.js';
 import { GraphService } from '../graph/graph.service.js';
 import { normaliseName, normaliseRelation } from '../graph/normalise.js';
 import type { Triple } from '../graph/graph.types.js';
@@ -30,6 +32,7 @@ export class IngestService {
   constructor(
     private readonly llm: LlmService,
     private readonly graph: GraphService,
+    private readonly embedding: EmbeddingService,
   ) {}
 
   async ingest(text: string): Promise<IngestResult> {
@@ -52,6 +55,39 @@ export class IngestService {
     }));
 
     await this.graph.upsertTriples(triples);
+
+    const touchedNames = new Set<string>();
+    for (const t of triples) {
+      touchedNames.add(t.subject);
+      touchedNames.add(t.object);
+    }
+    await this.reembedEntities(touchedNames);
+
     return { triplesExtracted: triples.length };
+  }
+
+  /**
+   * Re-derives each touched node's description from its *current* edges
+   * (old ones included) and re-embeds it — not just the edges this call
+   * added. A node's embedding must reflect everything known about it, or a
+   * second document that only adds one more fact would leave the node
+   * findable only by its first document's content.
+   *
+   * Sequential on purpose: this is one local model on one machine, so
+   * parallel calls would just queue up behind each other anyway, and
+   * sequential keeps failures easy to attribute to one node.
+   */
+  private async reembedEntities(names: Set<string>): Promise<void> {
+    for (const name of names) {
+      const { edges } = await this.graph.getNeighborhood([name]);
+      const description = buildEntityDescription(name, edges);
+      const vector = await this.embedding.embedDocument(description);
+      await this.graph.upsertEmbedding(
+        name,
+        vector,
+        description,
+        this.embedding.modelName,
+      );
+    }
   }
 }

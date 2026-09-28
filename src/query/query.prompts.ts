@@ -7,9 +7,11 @@ import type { Subgraph } from '../graph/graph.types.js';
  * entity. The worked examples below break that anchor; the second one also
  * shows that a question may carry more than one lookup key.
  *
- * Stage 1 replaces this exact-string path with embedding-based seed-node lookup
- * (entity embeddings + Neo4j vector index), which also absorbs morphological and
- * synonym mismatches that exact matching cannot handle.
+ * Since Stage 1, these phrases are no longer matched by exact string against
+ * node names — each is embedded and matched via the Neo4j vector index
+ * (QueryService.findSeedNodes), which absorbs morphological and synonym
+ * mismatches exact matching couldn't. The extraction rules above still
+ * matter just as much: a phrase that's never extracted can't be embedded.
  */
 export function buildEntityExtractionPrompt(question: string): string {
   return `Extract the lookup keys from a question so they can be matched against nodes in a knowledge graph.
