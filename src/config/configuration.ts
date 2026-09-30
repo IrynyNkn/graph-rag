@@ -2,6 +2,7 @@ export interface AppConfig {
   ollama: { baseUrl: string; model: string };
   neo4j: { uri: string; user: string; password: string };
   embedding: { model: string; dimension: number; similarityThreshold: number };
+  ppr: { topN: number };
 }
 
 export default (): AppConfig => ({
@@ -28,5 +29,16 @@ export default (): AppConfig => ({
     // if a known fact returns "I don't know" (false negative), raise it if
     // irrelevant facts leak into the answer (false positive).
     similarityThreshold: Number(process.env.SIMILARITY_THRESHOLD ?? 0.6),
+  },
+  ppr: {
+    // How many top-scoring nodes from Personalized PageRank make it into the
+    // final subgraph. Same "uncalibrated" caveat as similarityThreshold above,
+    // but the failure direction is subtler: on a small graph, the *correct*
+    // multi-hop answer is often the lowest-scoring node (score decays with
+    // distance from the seeds), so too small a topN cuts exactly the node
+    // PPR was introduced to reach. Defaulted generously for now — tighten
+    // once the graph is bigger than a handful of nodes and an eval set
+    // exists to check against.
+    topN: Number(process.env.PPR_TOP_N ?? 15),
   },
 });

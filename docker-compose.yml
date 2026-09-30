@@ -7,6 +7,11 @@ services:
       - "7687:7687" # Bolt (driver)
     environment:
       NEO4J_AUTH: neo4j/graphrag-local
+      # Stage 2: Personalized PageRank runs in the Graph Data Science plugin,
+      # not in Cypher itself. This env var makes the official image download
+      # and enable it at container startup (GDS Community Edition, no
+      # separate license needed).
+      NEO4J_PLUGINS: '["graph-data-science"]'
     volumes:
       - neo4j-data:/data
 

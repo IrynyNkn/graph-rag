@@ -43,7 +43,20 @@ export class QueryService {
     }
 
     const seedNames = await this.findSeedNodes(parsed.data.entities);
-    const subgraph = await this.graph.getNeighborhood(seedNames);
+
+    // Stage 2: replaces the flat 1-hop expansion with Personalized PageRank
+    // from the seed nodes — reaches multi-hop facts a plain neighborhood
+    // lookup can't (see graph.service.ts). Seeds themselves always rank
+    // highest, so nothing found in Stage 1 is lost by this replacement.
+    const topN = this.config.getOrThrow<number>('ppr.topN');
+    const rankedNodes = await this.graph.personalizedPageRank(seedNames, topN);
+    this.logger.debug(
+      `PPR-ranked nodes: ${JSON.stringify(rankedNodes)}`,
+    );
+
+    const subgraph = await this.graph.getNeighborhood(
+      rankedNodes.map((n) => n.name),
+    );
 
     const answer = await this.llm.generateText(
       buildAnswerPrompt(question, subgraph),

@@ -44,6 +44,52 @@ WHERE score >= $threshold
 RETURN node.name AS name, score
 `;
 
+/** Same "fixed literal, not user input" reasoning as VECTOR_INDEX_NAME. */
+const PROJECTION_NAME = 'kg';
+
+/**
+ * `orientation: 'UNDIRECTED'` is load-bearing, not a style choice — verified
+ * live against this project's data. Relations are stored subject->object as
+ * extracted ("platform team -RESPONSIBLE_FOR-> billing", "maria -MANAGES->
+ * platform team"), and GDS PageRank only walks a relationship's *stored*
+ * direction by default. Seeded from "billing" with the default (NATURAL)
+ * orientation, `platform team` and `maria` scored exactly 0 — there is no
+ * outgoing edge from "billing" toward them, only incoming ones, so the walk
+ * can never reach them. `getNeighborhood`'s Cypher never had this problem
+ * because `MATCH (e)-[r:REL]-(:Entity)` has no arrow — undirected already.
+ * UNDIRECTED here makes the projection match that same behaviour.
+ */
+const CREATE_PROJECTION = `
+CALL gds.graph.project($projectionName, 'Entity', { REL: { orientation: 'UNDIRECTED' } })
+`;
+
+/**
+ * `false` = don't fail if the named graph doesn't exist yet — makes this
+ * safe to call unconditionally before every (re)create, both at startup
+ * (nothing projected yet) and after every ingest (something already is).
+ * Unlike the vector index, a projection is a disposable in-memory snapshot
+ * with no persisted state to lose, so there's no dimension-mismatch class of
+ * bug to guard against here — drop-then-recreate is always safe.
+ */
+const DROP_PROJECTION = `
+CALL gds.graph.drop($projectionName, false) YIELD graphName RETURN graphName
+`;
+
+const PERSONALIZED_PAGERANK = `
+MATCH (n:Entity) WHERE n.name IN $seedNames
+WITH collect(n) AS sourceNodes
+CALL gds.pageRank.stream($projectionName, {
+  sourceNodes: sourceNodes,
+  dampingFactor: $dampingFactor,
+  maxIterations: $maxIterations
+})
+YIELD nodeId, score
+WHERE score > 0
+RETURN gds.util.asNode(nodeId).name AS name, score
+ORDER BY score DESC
+LIMIT $topN
+`;
+
 /**
  * Fixed, hand-written Cypher. Never built from LLM output — the data below is
  * always passed as bound parameters ($triples, $names), so there is no string
@@ -80,6 +126,9 @@ export class GraphService implements OnModuleInit, OnModuleDestroy {
       ),
     );
     await this.ensureVectorIndex();
+    // Built here too (not only after ingest) so a /query before any /ingest
+    // ever ran hits an empty-but-existing projection instead of a missing one.
+    await this.refreshProjection();
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -215,6 +264,59 @@ export class GraphService implements OnModuleInit, OnModuleDestroy {
           vector,
           threshold,
           limit: neo4j.int(limit),
+        }),
+      );
+      return result.records.map((r) => ({
+        name: r.get('name') as string,
+        score: r.get('score') as number,
+      }));
+    } finally {
+      await session.close();
+    }
+  }
+
+  async refreshProjection(): Promise<void> {
+    const session = this.driver.session();
+    try {
+      await session.executeWrite((tx) =>
+        tx.run(DROP_PROJECTION, { projectionName: PROJECTION_NAME }),
+      );
+      await session.executeWrite((tx) =>
+        tx.run(CREATE_PROJECTION, { projectionName: PROJECTION_NAME }),
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Multi-hop retrieval (Module 4/Stage 2): Personalized PageRank seeded
+   * from `seedNames` (Stage 1's vector-search hits), replacing the flat
+   * 1-hop `getNeighborhood` expansion. `score > 0` in PERSONALIZED_PAGERANK
+   * already drops nodes truly unreachable from every seed; `topN` caps how
+   * many of the reachable ones make it into the final subgraph (see
+   * configuration.ts for why that number is a real tuning knob, not a
+   * safety limit).
+   *
+   * dampingFactor/maxIterations are standard PPR defaults (not exposed as
+   * config, unlike topN/similarityThreshold) — 0.85 is the conventional
+   * value from the original PageRank paper and rarely changed in practice.
+   */
+  async personalizedPageRank(
+    seedNames: string[],
+    topN: number,
+  ): Promise<SeedNode[]> {
+    if (seedNames.length === 0) return [];
+
+    const session = this.driver.session();
+    try {
+      const result = await session.executeRead((tx) =>
+        tx.run(PERSONALIZED_PAGERANK, {
+          projectionName: PROJECTION_NAME,
+          seedNames,
+          dampingFactor: 0.85,
+          maxIterations: neo4j.int(20),
+          topN: neo4j.int(topN),
         }),
       );
       return result.records.map((r) => ({

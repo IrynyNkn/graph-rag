@@ -63,6 +63,13 @@ export class IngestService {
     }
     await this.reembedEntities(touchedNames);
 
+    // Stage 2: the GDS projection is a snapshot, not a live view — it must
+    // be rebuilt whenever the graph it was taken from changes, same
+    // reasoning as re-embedding above but for structure instead of content.
+    if (triples.length > 0) {
+      await this.graph.refreshProjection();
+    }
+
     return { triplesExtracted: triples.length };
   }
 
