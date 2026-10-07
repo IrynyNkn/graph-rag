@@ -103,6 +103,17 @@ MERGE (o:Entity { name: t.object })
 MERGE (s)-[:REL { type: t.relation }]->(o)
 `;
 
+/**
+ * Stage 3: the growing, "closed-for-now" relation vocabulary described to
+ * the extraction LLM. The graph itself is the source of truth for what's
+ * already known — no separate table to keep in sync. Empty result on the
+ * first-ever ingest is expected and handled by the prompt, not here.
+ */
+const KNOWN_RELATION_TYPES = `
+MATCH ()-[r:REL]->()
+RETURN DISTINCT r.type AS type
+`;
+
 const NEIGHBOURHOOD = `
 UNWIND $names AS name
 MATCH (e:Entity { name: name })
@@ -188,6 +199,21 @@ export class GraphService implements OnModuleInit, OnModuleDestroy {
     const session = this.driver.session();
     try {
       await session.executeWrite((tx) => tx.run(UPSERT_TRIPLES, { triples }));
+    } finally {
+      await session.close();
+    }
+  }
+
+  /** Distinct relation types already in the graph, read fresh on every call
+   *  (not cached) — cheap, and staleness here would defeat the point: the
+   *  caller needs the vocabulary as of right now, not as of app startup. */
+  async getKnownRelationTypes(): Promise<string[]> {
+    const session = this.driver.session();
+    try {
+      const result = await session.executeRead((tx) =>
+        tx.run(KNOWN_RELATION_TYPES),
+      );
+      return result.records.map((r) => r.get('type') as string);
     } finally {
       await session.close();
     }

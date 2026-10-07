@@ -36,9 +36,11 @@ export class IngestService {
   ) {}
 
   async ingest(text: string): Promise<IngestResult> {
-    const raw = await this.llm.generateText(buildExtractionPrompt(text), {
-      json: true,
-    });
+    const knownTypes = await this.graph.getKnownRelationTypes();
+    const raw = await this.llm.generateText(
+      buildExtractionPrompt(text, knownTypes),
+      { json: true },
+    );
 
     this.logger.debug(`Extraction output: ${raw}`);
 
