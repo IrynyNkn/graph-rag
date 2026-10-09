@@ -84,3 +84,35 @@ ${text}
 
 Return only the JSON object.`;
 }
+
+/**
+ * Entity resolution confirmation (Stage 3). Deliberately asymmetric
+ * context: the new name just came out of extraction and has no edges yet,
+ * so there's nothing to describe it with; the existing candidate usually
+ * does (its embeddingText, built from real edges — see describe.ts), so the
+ * model judges against actual known facts instead of two bare strings. Two
+ * bare strings alone can't tell "Acme Corp" from "Acme Industries"; grounded
+ * context at least gives the model a chance to.
+ */
+export function buildEntityResolutionPrompt(
+  newName: string,
+  candidateName: string,
+  candidateContext: string | null,
+): string {
+  return `You are deciding whether two names refer to the same real-world entity in a knowledge graph.
+
+NEW NAME (just extracted from a document; no other context is available yet): "${newName}"
+
+EXISTING ENTITY ALREADY IN THE GRAPH: "${candidateName}"
+What is already known about it: ${candidateContext ?? '(nothing is known about it yet)'}
+
+Return ONLY a JSON object of this exact shape:
+{ "sameEntity": true } or { "sameEntity": false }
+
+RULES:
+- Answer true only if you are confident the two names refer to the same real-world thing — e.g. "Acme" and "Acme Corp" are very likely the same company.
+- Answer false if they merely share a word but are plausibly different things — e.g. "Acme Corp" and "Acme Industries" despite sharing "Acme".
+- When genuinely unsure, answer false. Merging two different entities into one is worse than leaving two nodes for the same one.
+
+Return only the JSON object.`;
+}

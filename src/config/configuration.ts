@@ -3,6 +3,7 @@ export interface AppConfig {
   neo4j: { uri: string; user: string; password: string };
   embedding: { model: string; dimension: number; similarityThreshold: number };
   ppr: { topN: number };
+  entityResolution: { candidateSimilarityThreshold: number };
 }
 
 export default (): AppConfig => ({
@@ -40,5 +41,19 @@ export default (): AppConfig => ({
     // once the graph is bigger than a handful of nodes and an eval set
     // exists to check against.
     topN: Number(process.env.PPR_TOP_N ?? 15),
+  },
+  entityResolution: {
+    // Separate from embedding.similarityThreshold above on purpose — that one
+    // decides "is this node relevant enough to answer with" (query time);
+    // this one decides "is this existing node plausibly the same real-world
+    // entity as a name just extracted" (ingest time). Different question,
+    // different stakes for getting it wrong, so no reason to assume the same
+    // number works for both. Deliberately permissive: this is only a
+    // candidate filter — IngestService.confirmSameEntity (an LLM call) makes
+    // the actual merge decision, so a loose threshold here costs an extra
+    // LLM call, not a wrong merge.
+    candidateSimilarityThreshold: Number(
+      process.env.ENTITY_RESOLUTION_THRESHOLD ?? 0.5,
+    ),
   },
 });

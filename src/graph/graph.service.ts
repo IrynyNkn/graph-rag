@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import neo4j, { type Driver } from 'neo4j-driver';
+import { escapeLuceneQuery } from './lucene.js';
 import type { SeedNode, Subgraph, SubgraphEdge, Triple } from './graph.types.js';
 
 /**
@@ -37,10 +38,47 @@ SET e.embedding = $embedding,
     e.embeddingModel = $embeddingModel
 `;
 
+const GET_EMBEDDING_TEXT = `
+MATCH (e:Entity { name: $name })
+RETURN e.embeddingText AS text
+`;
+
 const FIND_SEED_NODES = `
 CALL db.index.vector.queryNodes($indexName, $limit, $vector)
 YIELD node, score
 WHERE score >= $threshold
+RETURN node.name AS name, score
+`;
+
+/**
+ * Entity resolution (Stage 3): fixed literal, same reasoning as
+ * VECTOR_INDEX_NAME. Created here too (ensureFulltextIndex) even though
+ * Iryna already created it by hand, so a fresh environment doesn't depend
+ * on that manual step having happened.
+ */
+const FULLTEXT_INDEX_NAME = 'entity_name_fulltext';
+
+const CREATE_FULLTEXT_INDEX = `
+CREATE FULLTEXT INDEX ${FULLTEXT_INDEX_NAME} IF NOT EXISTS
+FOR (n:Entity) ON EACH [n.name]
+`;
+
+const ENTITY_EXISTS = `
+MATCH (e:Entity { name: $name })
+RETURN count(e) > 0 AS exists
+`;
+
+/**
+ * Plain tokenized match, not Lucene fuzzy (`~`) — deliberately, for now.
+ * Tokenization alone already finds "Acme Corp" when searching "Acme" (both
+ * share the token "acme"), which is the case this project keeps using as
+ * its example. `~` edit-distance fuzzing adds typo tolerance but is awkward
+ * to build correctly for multi-word names without a more careful query
+ * builder; deferred until a real typo case justifies it.
+ */
+const FIND_CANDIDATES_BY_FULLTEXT = `
+CALL db.index.fulltext.queryNodes($indexName, $query, { limit: $limit })
+YIELD node, score
 RETURN node.name AS name, score
 `;
 
@@ -137,6 +175,7 @@ export class GraphService implements OnModuleInit, OnModuleDestroy {
       ),
     );
     await this.ensureVectorIndex();
+    await this.ensureFulltextIndex();
     // Built here too (not only after ingest) so a /query before any /ingest
     // ever ran hits an empty-but-existing projection instead of a missing one.
     await this.refreshProjection();
@@ -189,6 +228,79 @@ export class GraphService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(
         `Created vector index "${VECTOR_INDEX_NAME}" (dimension ${dimension}).`,
       );
+    } finally {
+      await session.close();
+    }
+  }
+
+  /** No dimension-mismatch class of bug here (unlike the vector index) — a
+   *  full-text index has no model-dependent shape, so IF NOT EXISTS alone
+   *  is safe, no pre-check needed. */
+  private async ensureFulltextIndex(): Promise<void> {
+    const session = this.driver.session();
+    try {
+      await session.executeWrite((tx) => tx.run(CREATE_FULLTEXT_INDEX));
+    } finally {
+      await session.close();
+    }
+  }
+
+  /** Cheap short-circuit for entity resolution: an exact-name match is
+   *  already handled correctly by MERGE, so IngestService skips the whole
+   *  candidate-search + LLM-confirm path whenever this is true. */
+  async entityExists(name: string): Promise<boolean> {
+    const session = this.driver.session();
+    try {
+      const result = await session.executeRead((tx) =>
+        tx.run(ENTITY_EXISTS, { name }),
+      );
+      return result.records[0].get('exists') as boolean;
+    } finally {
+      await session.close();
+    }
+  }
+
+  /** Fuzzy (lexical) half of entity-resolution candidate generation — the
+   *  other half is the existing vector search (findSeedNodesByVector),
+   *  called by IngestService with its own candidate threshold. The two are
+   *  independent signals feeding the same LLM-confirm step, not combined
+   *  into one score (Lucene's score and cosine similarity aren't on
+   *  comparable scales). */
+  async findCandidatesByFulltext(
+    name: string,
+    limit = 5,
+  ): Promise<SeedNode[]> {
+    const session = this.driver.session();
+    try {
+      const result = await session.executeRead((tx) =>
+        tx.run(FIND_CANDIDATES_BY_FULLTEXT, {
+          indexName: FULLTEXT_INDEX_NAME,
+          query: escapeLuceneQuery(name),
+          limit: neo4j.int(limit),
+        }),
+      );
+      return result.records.map((r) => ({
+        name: r.get('name') as string,
+        score: r.get('score') as number,
+      }));
+    } finally {
+      await session.close();
+    }
+  }
+
+  /** Used by entity-resolution confirmation to ground the LLM's yes/no in
+   *  the candidate's actual known facts rather than its bare name — a new
+   *  name has no such context yet (no edges), so the comparison is
+   *  deliberately asymmetric. Null for a node that hasn't been embedded yet
+   *  (shouldn't happen for anything findable as a candidate, but the type
+   *  stays honest about it). */
+  async getEmbeddingText(name: string): Promise<string | null> {
+    const session = this.driver.session();
+    try {
+      const result = await session.executeRead((tx) =>
+        tx.run(GET_EMBEDDING_TEXT, { name }),
+      );
+      return (result.records[0]?.get('text') as string | undefined) ?? null;
     } finally {
       await session.close();
     }
