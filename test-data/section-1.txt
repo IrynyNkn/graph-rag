@@ -1,0 +1,9 @@
+SECTION 1: Platform Engineering
+
+Diana Kessler is the Chief Technology Officer. Diana Kessler oversees the Platform Engineering department, the Data Platform department, and the Infrastructure and Security department.
+
+The Checkout Team is part of the Platform Engineering department. Elena Voss manages the Checkout Team. Elena Voss has the role Engineering Manager. Marcus Reyes is a member of the Checkout Team. Marcus Reyes has the role Senior Engineer. Priya Nair is a member of the Checkout Team. Priya Nair has the role Senior Engineer. The Checkout Team owns the Checkout Service. The Checkout Service depends on the Billing Engine.
+
+The Catalog Team is part of the Platform Engineering department. Daniel Kuhn manages the Catalog Team. Daniel Kuhn has the role Engineering Manager. Sofia Marchetti is a member of the Catalog Team. Sofia Marchetti has the role Staff Engineer. The Catalog Team owns the Catalog Service.
+
+The Search Team is part of the Platform Engineering department. Owen Blackwood manages the Search Team. Owen Blackwood has the role Engineering Manager. Yuki Tanaka is a member of the Search Team. Yuki Tanaka has the role Senior Engineer. Felix Ahn is a member of the Search Team. Felix Ahn has the role Senior Engineer. The Search Team owns the Search Index. The Search Index depends on the Catalog Service. The Search Index depends on NimbusCDN. The Search Team owns Project Lighthouse. Project Lighthouse aims to overhaul search relevance. The Key Person Risk threatens the Search Team, because the team relies heavily on Owen Blackwood.

@@ -1,12 +1,10 @@
 import { Module } from '@nestjs/common';
-import { EmbeddingModule } from '../embedding/embedding.module.js';
-import { GraphModule } from '../graph/graph.module.js';
-import { LlmModule } from '../llm/llm.module.js';
+import { AgentModule } from '../agent/agent.module.js';
 import { QueryController } from './query.controller.js';
 import { QueryService } from './query.service.js';
 
 @Module({
-  imports: [LlmModule, GraphModule, EmbeddingModule],
+  imports: [AgentModule],
   controllers: [QueryController],
   providers: [QueryService],
 })

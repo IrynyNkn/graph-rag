@@ -1,0 +1,7 @@
+SECTION 5: Finance and Operations
+
+The Billing Team is part of the Finance and Operations department. Wendy Abara manages the Billing Team. Wendy Abara has the role Finance Manager. Arjun Mehta is a member of the Billing Team. Arjun Mehta has the role Financial Analyst. Clara Dubois is a member of the Billing Team. Clara Dubois has the role Financial Analyst. The Billing Team owns the Billing Engine. The Billing Engine depends on the Invoicing Service. The Invoicing Service depends on PaySecure. The Billing Engine depends on PaySecure. The Compliance Audit Risk threatens the Billing Engine. The Billing Team owns Project Streamline. Project Streamline aims to migrate the billing system.
+
+The Procurement Team is part of the Finance and Operations department. Samuel Ortega manages the Procurement Team. Samuel Ortega has the role Finance Manager. Petra Novotna is a member of the Procurement Team. Petra Novotna has the role Financial Analyst. The Procurement Team owns the Vendor Management Tool. The Procurement Team oversees TalentBridge. The Procurement Team oversees LegalWorks Partners. The Procurement Team oversees GlobalShip Logistics.
+
+The Payroll Team is part of the Finance and Operations department. Francesca Rinaldi manages the Payroll Team. Francesca Rinaldi has the role Finance Manager. Kwame Asante is a member of the Payroll Team. Kwame Asante has the role Financial Analyst. The Payroll Team owns the Payroll System.

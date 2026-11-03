@@ -1,0 +1,7 @@
+SECTION 2: Data Platform
+
+The Analytics Team is part of the Data Platform department. Grace Olumide manages the Analytics Team. Grace Olumide has the role Engineering Manager. Noah Fischer is a member of the Analytics Team. Noah Fischer has the role Data Scientist. The Analytics Team owns the Analytics Dashboard. The Analytics Dashboard depends on the Data Warehouse. The Data Latency Risk threatens the Analytics Dashboard.
+
+The ML Team is part of the Data Platform department. Ines Duarte manages the ML Team. Ines Duarte has the role Engineering Manager. Tariq Hassan is a member of the ML Team. Tariq Hassan has the role Data Scientist. Lena Petrov is a member of the ML Team. Lena Petrov has the role Data Scientist. The ML Team owns the Recommendation Engine. The Recommendation Engine depends on the Analytics Dashboard. The ML Team owns the ML Training Pipeline. The ML Training Pipeline depends on the Data Warehouse. The ML Team owns Project Horizon. Project Horizon aims to improve personalization.
+
+The Data Pipeline Team is part of the Data Platform department. Victor Alston manages the Data Pipeline Team. Victor Alston has the role Engineering Manager. Mei Lin is a member of the Data Pipeline Team. Mei Lin has the role Senior Engineer. The Data Pipeline Team owns the Data Warehouse. The Data Warehouse depends on DataVault Analytics.

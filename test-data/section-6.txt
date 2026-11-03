@@ -1,0 +1,3 @@
+SECTION 6: Vendor follow-up (deliberately uses short forms of names introduced earlier in full)
+
+The Cloud Orchestrator relies on CloudHarbor for infrastructure capacity. CloudHarbor had two outages last quarter. The Data Warehouse relies on DataVault for long-term storage. DataVault recently upgraded its storage tier. The Identity and Access Service relies on SecureAuth for authentication. SecureAuth announced a new multi-factor authentication feature.

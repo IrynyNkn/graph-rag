@@ -1,0 +1,47 @@
+SECTION 1: Platform Engineering
+
+Diana Kessler is the Chief Technology Officer. Diana Kessler oversees the Platform Engineering department, the Data Platform department, and the Infrastructure and Security department.
+
+The Checkout Team is part of the Platform Engineering department. Elena Voss manages the Checkout Team. Elena Voss has the role Engineering Manager. Marcus Reyes is a member of the Checkout Team. Marcus Reyes has the role Senior Engineer. Priya Nair is a member of the Checkout Team. Priya Nair has the role Senior Engineer. The Checkout Team owns the Checkout Service. The Checkout Service depends on the Billing Engine.
+
+The Catalog Team is part of the Platform Engineering department. Daniel Kuhn manages the Catalog Team. Daniel Kuhn has the role Engineering Manager. Sofia Marchetti is a member of the Catalog Team. Sofia Marchetti has the role Staff Engineer. The Catalog Team owns the Catalog Service.
+
+The Search Team is part of the Platform Engineering department. Owen Blackwood manages the Search Team. Owen Blackwood has the role Engineering Manager. Yuki Tanaka is a member of the Search Team. Yuki Tanaka has the role Senior Engineer. Felix Ahn is a member of the Search Team. Felix Ahn has the role Senior Engineer. The Search Team owns the Search Index. The Search Index depends on the Catalog Service. The Search Index depends on NimbusCDN. The Search Team owns Project Lighthouse. Project Lighthouse aims to overhaul search relevance. The Key Person Risk threatens the Search Team, because the team relies heavily on Owen Blackwood.
+
+SECTION 2: Data Platform
+
+The Analytics Team is part of the Data Platform department. Grace Olumide manages the Analytics Team. Grace Olumide has the role Engineering Manager. Noah Fischer is a member of the Analytics Team. Noah Fischer has the role Data Scientist. The Analytics Team owns the Analytics Dashboard. The Analytics Dashboard depends on the Data Warehouse. The Data Latency Risk threatens the Analytics Dashboard.
+
+The ML Team is part of the Data Platform department. Ines Duarte manages the ML Team. Ines Duarte has the role Engineering Manager. Tariq Hassan is a member of the ML Team. Tariq Hassan has the role Data Scientist. Lena Petrov is a member of the ML Team. Lena Petrov has the role Data Scientist. The ML Team owns the Recommendation Engine. The Recommendation Engine depends on the Analytics Dashboard. The ML Team owns the ML Training Pipeline. The ML Training Pipeline depends on the Data Warehouse. The ML Team owns Project Horizon. Project Horizon aims to improve personalization.
+
+The Data Pipeline Team is part of the Data Platform department. Victor Alston manages the Data Pipeline Team. Victor Alston has the role Engineering Manager. Mei Lin is a member of the Data Pipeline Team. Mei Lin has the role Senior Engineer. The Data Pipeline Team owns the Data Warehouse. The Data Warehouse depends on DataVault Analytics.
+
+SECTION 3: Customer Success
+
+Marcus Webb is the Chief Operating Officer. Marcus Webb oversees the Customer Success department and the Finance and Operations department.
+
+The Support Team is part of the Customer Success department. Carmen Ibarra manages the Support Team. Carmen Ibarra has the role Team Lead. Jonas Weber is a member of the Support Team. Jonas Weber has the role Support Specialist. Amara Okafor is a member of the Support Team. Amara Okafor has the role Support Specialist. The Support Team owns the Support Ticketing System.
+
+The Onboarding Team is part of the Customer Success department. Liam Gallagher manages the Onboarding Team. Liam Gallagher has the role Team Lead. Sana Malik is a member of the Onboarding Team. Sana Malik has the role Support Specialist. The Onboarding Team owns the Onboarding Portal. The Onboarding Portal depends on the Identity and Access Service. The Onboarding Team owns Project Compass. Project Compass aims to redesign onboarding.
+
+The Success Engineering Team is part of the Customer Success department. Hugo Lindqvist manages the Success Engineering Team. Hugo Lindqvist has the role Engineering Manager. Devi Ramaswamy is a member of the Success Engineering Team. Devi Ramaswamy has the role Senior Engineer. The Success Engineering Team owns the Customer Health Score. The Customer Health Score depends on the Support Ticketing System. The Customer Health Score depends on the Analytics Dashboard. The Success Engineering Team owns Project Beacon. Project Beacon aims to improve customer health scoring.
+
+SECTION 4: Infrastructure and Security
+
+The Network Team is part of the Infrastructure and Security department. Pavel Novak manages the Network Team. Pavel Novak has the role Engineering Manager. Astrid Solberg is a member of the Network Team. Astrid Solberg has the role Site Reliability Engineer. Theo Kowalski is a member of the Network Team. Theo Kowalski has the role Site Reliability Engineer. The Network Team owns the Network Gateway. The Capacity Risk threatens the Network Gateway.
+
+The Security Team is part of the Infrastructure and Security department. Nadia Farouk manages the Security Team. Nadia Farouk has the role Engineering Manager. Ben Harrington is a member of the Security Team. Ben Harrington has the role Security Analyst. Mira Castellano is a member of the Security Team. Mira Castellano has the role Security Analyst. The Security Team owns the Identity and Access Service. The Identity and Access Service depends on the Network Gateway. The Identity and Access Service depends on SecureAuth Inc. The Security Team owns Project Fortress. Project Fortress aims to harden security.
+
+The Cloud Team is part of the Infrastructure and Security department. Jorge Salinas manages the Cloud Team. Jorge Salinas has the role Engineering Manager. Ingrid Halvorsen is a member of the Cloud Team. Ingrid Halvorsen has the role Site Reliability Engineer. The Cloud Team owns the Cloud Orchestrator. The Cloud Orchestrator depends on the Network Gateway. The Cloud Orchestrator depends on CloudHarbor Technologies. The Vendor Lock-in Risk threatens the Cloud Orchestrator.
+
+SECTION 5: Finance and Operations
+
+The Billing Team is part of the Finance and Operations department. Wendy Abara manages the Billing Team. Wendy Abara has the role Finance Manager. Arjun Mehta is a member of the Billing Team. Arjun Mehta has the role Financial Analyst. Clara Dubois is a member of the Billing Team. Clara Dubois has the role Financial Analyst. The Billing Team owns the Billing Engine. The Billing Engine depends on the Invoicing Service. The Invoicing Service depends on PaySecure. The Billing Engine depends on PaySecure. The Compliance Audit Risk threatens the Billing Engine. The Billing Team owns Project Streamline. Project Streamline aims to migrate the billing system.
+
+The Procurement Team is part of the Finance and Operations department. Samuel Ortega manages the Procurement Team. Samuel Ortega has the role Finance Manager. Petra Novotna is a member of the Procurement Team. Petra Novotna has the role Financial Analyst. The Procurement Team owns the Vendor Management Tool. The Procurement Team oversees TalentBridge. The Procurement Team oversees LegalWorks Partners. The Procurement Team oversees GlobalShip Logistics.
+
+The Payroll Team is part of the Finance and Operations department. Francesca Rinaldi manages the Payroll Team. Francesca Rinaldi has the role Finance Manager. Kwame Asante is a member of the Payroll Team. Kwame Asante has the role Financial Analyst. The Payroll Team owns the Payroll System.
+
+SECTION 6: Vendor follow-up (deliberately uses short forms of names introduced earlier in full)
+
+The Cloud Orchestrator relies on CloudHarbor for infrastructure capacity. CloudHarbor had two outages last quarter. The Data Warehouse relies on DataVault for long-term storage. DataVault recently upgraded its storage tier. The Identity and Access Service relies on SecureAuth for authentication. SecureAuth announced a new multi-factor authentication feature.

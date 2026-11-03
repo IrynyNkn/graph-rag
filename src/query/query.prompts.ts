@@ -1,5 +1,3 @@
-import type { Subgraph } from '../graph/graph.types.js';
-
 /**
  * v1. v0 returned { "entities": [] } deterministically for "Who is responsible
  * for billing?" — the phrase "a person, team, system, concept" anchored the
@@ -49,21 +47,4 @@ ${question}
 """
 
 Return only the JSON object.`;
-}
-
-/** Grounding instruction is deliberate: with no facts the model must abstain
- *  rather than fill the gap from its weights. */
-export function buildAnswerPrompt(question: string, subgraph: Subgraph): string {
-  const facts =
-    subgraph.edges
-      .map((e) => `(${e.source}) -[${e.relation}]-> (${e.target})`)
-      .join('\n') || '(no facts found)';
-
-  return `Answer the question using ONLY the facts below.
-If the facts are not enough to answer, say you don't know. Do not use outside knowledge.
-
-Facts:
-${facts}
-
-Question: ${question}`;
 }

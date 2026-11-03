@@ -1,17 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { z } from 'zod';
-import { parseJsonSafe } from '../common/parse-json.js';
-import { EmbeddingService } from '../embedding/embedding.service.js';
-import { GraphService } from '../graph/graph.service.js';
+import { Injectable } from '@nestjs/common';
+import { AgentService } from '../agent/agent.service.js';
 import type { Subgraph } from '../graph/graph.types.js';
-import { LlmService } from '../llm/llm.service.js';
-import {
-  buildAnswerPrompt,
-  buildEntityExtractionPrompt,
-} from './query.prompts.js';
-
-const entitySchema = z.object({ entities: z.array(z.string().min(1)) });
 
 export interface QueryResult {
   answer: string;
@@ -19,80 +8,19 @@ export interface QueryResult {
   subgraph: Subgraph;
 }
 
+/**
+ * Stage 4: thin facade. Everything that used to live here directly (extract
+ * phrases, find seed nodes, PPR, getNeighborhood, generate the answer) moved
+ * into AgentService.retrieveForAgent/answer — that fixed sequence is now
+ * the body of the local_retrieve tool, run when and as many times as the
+ * agent decides, not once unconditionally per question. This class exists
+ * only so the controller's dependency and the HTTP contract don't change.
+ */
 @Injectable()
 export class QueryService {
-  private readonly logger = new Logger(QueryService.name);
-
-  constructor(
-    private readonly llm: LlmService,
-    private readonly graph: GraphService,
-    private readonly embedding: EmbeddingService,
-    private readonly config: ConfigService,
-  ) {}
+  constructor(private readonly agent: AgentService) {}
 
   async query(question: string): Promise<QueryResult> {
-    const rawEntities = await this.llm.generateText(
-      buildEntityExtractionPrompt(question),
-      { json: true },
-    );
-
-    const parsed = entitySchema.safeParse(parseJsonSafe(rawEntities));
-    if (!parsed.success) {
-      this.logger.warn(`Entity extraction rejected: ${parsed.error.message}`);
-      throw new Error('Entity extraction failed: LLM output did not match schema');
-    }
-
-    const seedNames = await this.findSeedNodes(parsed.data.entities);
-
-    // Stage 2: replaces the flat 1-hop expansion with Personalized PageRank
-    // from the seed nodes — reaches multi-hop facts a plain neighborhood
-    // lookup can't (see graph.service.ts). Seeds themselves always rank
-    // highest, so nothing found in Stage 1 is lost by this replacement.
-    const topN = this.config.getOrThrow<number>('ppr.topN');
-    const rankedNodes = await this.graph.personalizedPageRank(seedNames, topN);
-    this.logger.debug(
-      `PPR-ranked nodes: ${JSON.stringify(rankedNodes)}`,
-    );
-
-    const subgraph = await this.graph.getNeighborhood(
-      rankedNodes.map((n) => n.name),
-    );
-
-    const answer = await this.llm.generateText(
-      buildAnswerPrompt(question, subgraph),
-    );
-
-    return { answer: answer.trim(), subgraph };
-  }
-
-  /**
-   * Stage 1 seed-node identification: embeds each extracted phrase
-   * separately (not the whole question — filler words like "who"/"in our"
-   * would dilute a single combined vector) and keeps every node whose score
-   * against *any* phrase clears the threshold. Exact-name matching from
-   * Stage 0 is gone; this absorbs plurals, synonyms and near-misses that
-   * exact matching couldn't.
-   */
-  private async findSeedNodes(phrases: string[]): Promise<string[]> {
-    const threshold = this.config.getOrThrow<number>(
-      'embedding.similarityThreshold',
-    );
-    const bestScoreByName = new Map<string, number>();
-
-    for (const phrase of phrases) {
-      const vector = await this.embedding.embedQuery(phrase);
-      const matches = await this.graph.findSeedNodesByVector(vector, threshold);
-      for (const match of matches) {
-        const best = bestScoreByName.get(match.name);
-        if (best === undefined || match.score > best) {
-          bestScoreByName.set(match.name, match.score);
-        }
-      }
-    }
-
-    this.logger.debug(
-      `Seed nodes: ${JSON.stringify([...bestScoreByName.entries()])}`,
-    );
-    return [...bestScoreByName.keys()];
+    return this.agent.answer(question);
   }
 }

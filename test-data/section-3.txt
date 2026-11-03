@@ -1,0 +1,9 @@
+SECTION 3: Customer Success
+
+Marcus Webb is the Chief Operating Officer. Marcus Webb oversees the Customer Success department and the Finance and Operations department.
+
+The Support Team is part of the Customer Success department. Carmen Ibarra manages the Support Team. Carmen Ibarra has the role Team Lead. Jonas Weber is a member of the Support Team. Jonas Weber has the role Support Specialist. Amara Okafor is a member of the Support Team. Amara Okafor has the role Support Specialist. The Support Team owns the Support Ticketing System.
+
+The Onboarding Team is part of the Customer Success department. Liam Gallagher manages the Onboarding Team. Liam Gallagher has the role Team Lead. Sana Malik is a member of the Onboarding Team. Sana Malik has the role Support Specialist. The Onboarding Team owns the Onboarding Portal. The Onboarding Portal depends on the Identity and Access Service. The Onboarding Team owns Project Compass. Project Compass aims to redesign onboarding.
+
+The Success Engineering Team is part of the Customer Success department. Hugo Lindqvist manages the Success Engineering Team. Hugo Lindqvist has the role Engineering Manager. Devi Ramaswamy is a member of the Success Engineering Team. Devi Ramaswamy has the role Senior Engineer. The Success Engineering Team owns the Customer Health Score. The Customer Health Score depends on the Support Ticketing System. The Customer Health Score depends on the Analytics Dashboard. The Success Engineering Team owns Project Beacon. Project Beacon aims to improve customer health scoring.
