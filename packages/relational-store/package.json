@@ -1,0 +1,33 @@
+{
+  "name": "@graph-rag/relational-store",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist",
+    "migrations"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "generate-migration": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@graph-rag/contracts": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^12.3.3"
+  },
+  "devDependencies": {
+    "@nestjs/common": "^12.3.3",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11"
+  }
+}

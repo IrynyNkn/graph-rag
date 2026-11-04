@@ -1,0 +1,31 @@
+{
+  "name": "@graph-rag/job-queue",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "amqp-connection-manager": "^5.0.1",
+    "amqplib": "^2.2.1",
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^12.3.3"
+  },
+  "devDependencies": {
+    "@graph-rag/testing": "workspace:*",
+    "@nestjs/common": "^12.3.3",
+    "@nestjs/testing": "^12.3.3"
+  }
+}

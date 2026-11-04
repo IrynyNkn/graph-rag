@@ -1,10 +1,90 @@
 {
-  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/crates/oxc_linter/src/rules.rs",
-  "rules": {
-    "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/no-floating-promises": "warn"
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
   },
   "env": {
-    "node": true
-  }
+    "node": true,
+    "es2024": true
+  },
+  "ignorePatterns": ["**/dist/**", "**/coverage/**", "packages/relational-store/migrations/**"],
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "typescript/no-non-null-assertion": "error",
+    "no-console": "error",
+    "import/no-cycle": "error",
+    "import/no-unassigned-import": "off",
+    "typescript/no-extraneous-class": "off",
+    "unicorn/consistent-function-scoping": "off"
+  },
+  "overrides": [
+    {
+      "files": ["apps/*/src/application/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/infrastructure/**", "**/presentation/**"],
+                "message": "The application layer must not depend on outer layers."
+              },
+              {
+                "group": [
+                  "neo4j-driver",
+                  "pg",
+                  "drizzle-orm",
+                  "amqplib",
+                  "ollama",
+                  "openai",
+                  "express",
+                  "@graph-rag/relational-store",
+                  "@graph-rag/graph-store"
+                ],
+                "message": "Keep drivers and stores behind a repository in infrastructure."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/*/src/presentation/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/infrastructure/**"],
+                "message": "Presentation talks to the application layer only."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["**/*.spec.ts", "**/*.spec.tsx", "apps/*/test/**", "packages/*/test/**"],
+      "rules": {
+        "no-restricted-imports": "off",
+        "typescript/no-non-null-assertion": "off",
+        "vitest/require-to-throw-message": "off",
+        "vitest/require-mock-type-parameters": "off",
+        "vitest/expect-expect": "off"
+      }
+    },
+    {
+      "files": ["apps/frontend/**"],
+      "plugins": ["typescript", "unicorn", "oxc", "react"],
+      "env": {
+        "browser": true
+      },
+      "rules": {
+        "react/react-in-jsx-scope": "off"
+      }
+    }
+  ]
 }

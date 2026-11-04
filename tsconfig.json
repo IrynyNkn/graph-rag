@@ -1,22 +1,11 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "resolvePackageJsonExports": true,
-    "esModuleInterop": true,
-    "isolatedModules": true,
-    "declaration": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "target": "ES2023",
-    "sourceMap": true,
-    "outDir": "./dist",
-    "incremental": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "strictPropertyInitialization": false,
-    "types": ["vitest/globals", "node"]
-  }
+    "noEmit": true,
+    "paths": {
+      "@graph-rag/*": ["./packages/*/src/index.ts"]
+    }
+  },
+  "include": ["apps/*/src", "apps/*/test", "packages/*/src", "packages/*/test", "vitest.config.ts"],
+  "exclude": ["apps/frontend", "**/dist", "**/node_modules"]
 }

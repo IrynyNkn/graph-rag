@@ -1,0 +1,30 @@
+{
+  "name": "@graph-rag/inference",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "ollama": "^0.6.4",
+    "openai": "^7.50.0",
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^12.3.3"
+  },
+  "devDependencies": {
+    "@nestjs/common": "^12.3.3",
+    "@nestjs/testing": "^12.3.3"
+  }
+}
