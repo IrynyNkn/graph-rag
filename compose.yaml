@@ -1,0 +1,175 @@
+name: graph-rag
+
+x-stores: &stores
+  POSTGRES_URL: postgres://graph_rag:${POSTGRES_PASSWORD:-graph-rag-local}@postgres:5432/graph_rag
+  RABBITMQ_URL: amqp://rabbitmq:5672
+
+x-graph: &graph
+  NEO4J_URI: bolt://neo4j:7687
+  NEO4J_USER: neo4j
+  NEO4J_PASSWORD: ${NEO4J_PASSWORD:-graph-rag-local}
+
+x-inference: &inference
+  CHAT_PROVIDER: ${CHAT_PROVIDER:-ollama}
+  CHAT_BASE_URL: ${CHAT_BASE_URL:-http://host.docker.internal:11434}
+  CHAT_API_KEY: ${CHAT_API_KEY:-not-set}
+  CHAT_CONTEXT_WINDOW: ${CHAT_CONTEXT_WINDOW:-8192}
+  EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-ollama}
+  EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-http://host.docker.internal:11434}
+  EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-not-set}
+  EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-embedding:0.6b}
+  EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1024}
+  EMBEDDING_DOCUMENT_PREFIX: ${EMBEDDING_DOCUMENT_PREFIX:-}
+  EMBEDDING_QUERY_PREFIX: ${EMBEDDING_QUERY_PREFIX:-}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: graph_rag
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-graph-rag-local}
+      POSTGRES_DB: graph_rag
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U graph_rag -d graph_rag]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 256m
+
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-graph-rag-local}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_server_memory_heap_initial__size: 512M
+      NEO4J_server_memory_heap_max__size: 1G
+      NEO4J_server_memory_pagecache_size: 256M
+    ports:
+      - 127.0.0.1:${NEO4J_BROWSER_PORT:-7474}:7474
+      - 127.0.0.1:${NEO4J_BOLT_PORT:-7687}:7687
+    volumes:
+      - neo4j-data:/data
+      - neo4j-plugins:/plugins
+    healthcheck:
+      test: [CMD-SHELL, 'cypher-shell -u neo4j -p "$${NEO4J_AUTH#neo4j/}" "RETURN 1"']
+      interval: 5s
+      timeout: 10s
+      retries: 40
+    mem_limit: 1800m
+
+  rabbitmq:
+    image: rabbitmq:4-alpine
+    environment:
+      # The default of 30 minutes closes the channel in the middle of a long document, and
+      # classic queues do not accept x-consumer-timeout, so this is set for the whole broker.
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbit consumer_timeout 86400000
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+    mem_limit: 256m
+
+  indexing-service:
+    build:
+      context: .
+      args:
+        SERVICE: indexing-service
+    environment:
+      <<: *stores
+      FILE_STORE_DIRECTORY: /data/files
+    volumes:
+      - document-files:/data/files
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3001/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: on-failure
+    mem_limit: 256m
+
+  indexing-worker:
+    build:
+      context: .
+      args:
+        SERVICE: indexing-worker
+    environment:
+      <<: [*stores, *graph, *inference]
+      CHAT_MODEL: ${INDEXING_CHAT_MODEL:-qwen3.5:4b}
+      FILE_STORE_DIRECTORY: /data/files
+      CHUNK_CONCURRENCY: ${CHUNK_CONCURRENCY:-1}
+    volumes:
+      - document-files:/data/files
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    restart: on-failure
+    mem_limit: 768m
+
+  assistant-service:
+    build:
+      context: .
+      args:
+        SERVICE: assistant-service
+    environment:
+      <<: [*graph, *inference]
+      POSTGRES_URL: postgres://graph_rag:${POSTGRES_PASSWORD:-graph-rag-local}@postgres:5432/graph_rag
+      CHAT_MODEL: ${ASSISTANT_CHAT_MODEL:-qwen3.5:4b}
+      PORT: 3002
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3002/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: on-failure
+    mem_limit: 256m
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    ports:
+      - ${FRONTEND_PORT:-8080}:80
+    depends_on:
+      indexing-service:
+        condition: service_healthy
+      assistant-service:
+        condition: service_healthy
+    mem_limit: 64m
+
+volumes:
+  postgres-data:
+  neo4j-data:
+  neo4j-plugins:
+  rabbitmq-data:
+  document-files:
