@@ -1,0 +1,165 @@
+/* The conversation is a line, and every question is a stop on it. */
+.timeline {
+  flex: 1;
+  min-height: 0;
+  padding: 24px 24px 24px 66px;
+  overflow-y: auto;
+  background-image: linear-gradient(var(--ink), var(--ink));
+  background-position: 32px 0;
+  background-repeat: no-repeat;
+  background-size: 5px 100%;
+  background-attachment: local;
+  overflow-wrap: anywhere;
+}
+
+.timeline.is-empty {
+  display: flex;
+  align-items: flex-end;
+}
+
+.timeline-empty {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(56px, 6.4vw, 96px);
+  font-weight: 400;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.turn {
+  position: relative;
+  margin-bottom: 22px;
+}
+
+.turn.can-select {
+  cursor: pointer;
+}
+
+.turn::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: -44px;
+  width: 22px;
+  height: 22px;
+  border: 4px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+.turn.can-select:not(.is-active):hover::before {
+  background: color-mix(in srgb, var(--spot) 45%, var(--paper));
+}
+
+.turn.is-active::before {
+  background: var(--spot);
+}
+
+.turn-question {
+  margin: 0 0 6px;
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.turn.is-active .turn-question,
+.turn.is-latest .turn-question {
+  font-size: 44px;
+  line-height: 1.05;
+}
+
+.turn.is-active::before,
+.turn.is-latest::before {
+  top: 10px;
+}
+
+/* A pasted paragraph in display type would fill the column and push the answer out of sight. */
+.turn .turn-question.is-long {
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.turn-answer {
+  position: relative;
+  line-height: 1.42;
+  white-space: pre-wrap;
+}
+
+/* A dot travels along the line while the answer is on its way. */
+.turn-answer.is-streaming::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -42px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--spot);
+  animation: travel 900ms ease-in-out infinite alternate;
+}
+
+@keyframes travel {
+  to {
+    transform: translateY(26px);
+  }
+}
+
+.timeline-waiting {
+  opacity: 0.7;
+}
+
+.timeline-error {
+  margin: 10px 0;
+  padding: 6px 10px;
+  border: 2px solid var(--spot);
+  font-weight: 700;
+}
+
+.timeline-error.is-global {
+  margin: 10px 24px;
+}
+
+.sources {
+  margin-top: 6px;
+  font-size: 13.5px;
+  white-space: normal;
+}
+
+.sources summary {
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sources summary::marker {
+  color: var(--spot);
+}
+
+.sources blockquote {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--ink);
+}
+
+.sources cite {
+  display: block;
+  font-family: var(--display);
+  font-size: 15px;
+  font-style: normal;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 960px) {
+  .turn.is-active .turn-question,
+  .turn.is-latest .turn-question {
+    font-size: 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-answer.is-streaming::before {
+    animation: none;
+  }
+}

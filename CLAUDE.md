@@ -30,7 +30,7 @@ indexing-worker, assistant-service -> LLM provider (OpenRouter, or Ollama on the
 - **Documents:** PDF without OCR, TXT and MD, in English for now. The chunking strategy is detected per document.
 - **Retrieval:** QASA (Query-Aware Spreading Activation), ported to TypeScript from the user's repo `github.com/kinfi4/qasa-graph-rag` (MIT). It is not a dependency: clone it only into a temp folder, and credit it in the README. It needs APOC but not GDS: use native `vector.similarity.cosine`, whose scale is `(cos + 1) / 2`, and convert back with `2 * s - 1` (verified on Neo4j 5.26).
 - **Query flow:** chat history with summarisation of long chats, a router that decides whether RAG is needed, question reformulation, retrieval, answer.
-- **UI:** a documents screen, and a chat screen with the chat on the left and the retrieved graph on the right, drawn with QASA weights (activation on nodes, path weight on edges).
+- **UI:** a documents screen, and a chat screen with the chat on the left and the retrieved graph on the right, drawn with QASA weights (activation on nodes, path weight on edges) as a transit map in SVG.
 - **Independence:** indexing and chat are separate flows, with no scheduling priority between them.
 
 ## Structure
@@ -42,7 +42,7 @@ apps/
                             indexing/{parsing,chunking,extraction,resolution}, removal, knowledge
   assistant-service/src/  presentation, infrastructure/repositories, application/
                             conversations, turns, query/{analysis,retrieval,answering}
-  frontend/src/           app, api, features/{documents,chat,graph}
+  frontend/src/           app, api, styles, features/{documents,chat,graph/schematic}
 packages/                 contracts, inference, graph-store, relational-store, file-store,
                           job-queue, nest-common, testing (dev only)
 docs/
@@ -99,7 +99,9 @@ Dependencies point at `application`: `presentation -> application <- infrastruct
 
 ## Frontend code
 
-React function components and hooks. The design stays minimal for now and will be redone later, so keep data and state in hooks, apart from view components: a redesign must touch only the views.
+React function components and hooks. Keep data and state in hooks and pure functions, apart from view components, so that a redesign touches only the views. Each view imports its own CSS file, and colours and fonts are tokens in `styles/base.css`.
+
+The design is a two-colour risograph print of a transit map, described in `docs/architecture.md`. Keep to its two inks on paper: a new state gets a new form, not a new colour.
 
 ## Documentation
 
@@ -147,4 +149,5 @@ pnpm --filter @graph-rag/relational-store generate-migration
 - A named volume takes its owner from the image directory only when it is first created. The root `Dockerfile` prepares `/data/files` for the `node` user; a volume created before that stays root-owned and needs removing.
 - Relative imports need a `.js` suffix (`module: nodenext`), except in `apps/frontend`, which Vite bundles.
 - A constructor parameter imported with `import type` loses its decorator metadata, and Nest then cannot inject it. Import injected classes by value.
+- On the Windows dev machine, the Vite dev server can miss a file save and keep serving the old module, so a fix looks as if it did nothing. Compare against `curl localhost:5173/src/...`, and `touch` the file.
 - `oxlint` does not find `oxlint.json` by itself and silently lints with defaults. Use `pnpm lint`, which passes `-c oxlint.json`.

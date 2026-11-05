@@ -1,7 +1,7 @@
 import type { Citation, Message, RetrievedGraph } from '@graph-rag/contracts';
 import { describe, expect, it } from 'vitest';
-import { selectGraph } from './selected-graph';
 import { applyTurnEvent, finishTurn, IDLE_TURN, startTurn } from './turn-state';
+import { findActiveAnswer, groupIntoTurns, selectGraph } from './turns';
 
 const graphOf = (name: string): RetrievedGraph => ({
   nodes: [{ name, type: null, description: null, activation: 1, isSeed: true }],
@@ -21,6 +21,14 @@ const answer = (id: number, graph: RetrievedGraph | null): Message => ({
   content: 'Answer',
   createdAt: '2026-01-01T00:00:00.000Z',
   metadata: { route: 'knowledge_base', standaloneQuestion: 'Q', graph, citations: [] },
+});
+
+const question = (id: number): Message => ({
+  id,
+  role: 'user',
+  content: 'Question',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  metadata: null,
 });
 
 describe('turn state', () => {
@@ -67,6 +75,49 @@ describe('turn state', () => {
     const state = { ...startTurn('id', 'Q'), text: 'Partial', error: 'down' };
 
     expect(finishTurn(state)).toEqual({ ...IDLE_TURN, conversationId: 'id', error: 'down' });
+  });
+});
+
+describe('groupIntoTurns', () => {
+  it('pairs each question with its answer', () => {
+    const turns = groupIntoTurns([question(1), answer(2, null), question(3), answer(4, null)]);
+
+    expect(turns.map((turn) => [turn.question?.id, turn.answer?.id])).toEqual([
+      [1, 2],
+      [3, 4],
+    ]);
+  });
+
+  it('keeps a question whose answer never came', () => {
+    const turns = groupIntoTurns([question(1), question(2), answer(3, null)]);
+
+    expect(turns.map((turn) => [turn.question?.id, turn.answer?.id])).toEqual([
+      [1, undefined],
+      [2, 3],
+    ]);
+  });
+
+  it('keeps an answer without a question', () => {
+    const turns = groupIntoTurns([answer(1, null)]);
+
+    expect(turns).toEqual([{ question: null, answer: answer(1, null) }]);
+  });
+});
+
+describe('findActiveAnswer', () => {
+  const messages = [answer(1, graphOf('first')), answer(2, graphOf('second')), answer(3, null)];
+
+  it('prefers the chosen answer', () => {
+    expect(findActiveAnswer(messages, 1)?.id).toBe(1);
+  });
+
+  it('falls back to the latest answer with a graph', () => {
+    expect(findActiveAnswer(messages, null)?.id).toBe(2);
+    expect(findActiveAnswer(messages, 3)?.id).toBe(2);
+  });
+
+  it('treats a graph with no nodes as no graph', () => {
+    expect(findActiveAnswer([answer(1, { nodes: [], edges: [] })], null)).toBeNull();
   });
 });
 

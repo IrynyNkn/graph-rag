@@ -63,10 +63,16 @@ Compose runs these plus Postgres, Neo4j and RabbitMQ. Named volumes hold the dat
 │   │   │   └── main.ts
 │   │   └── test/integration/
 │   └── frontend/
+│       ├── public/                       favicon
 │       ├── src/
-│       │   ├── app/                      routes, providers
+│       │   ├── app/                      routes, providers, shared halftone mark
 │       │   ├── api/                      HTTP and SSE client
-│       │   └── features/                 documents, chat, graph
+│       │   ├── styles/                   colour and font tokens, page base
+│       │   └── features/
+│       │       ├── documents/
+│       │       ├── chat/
+│       │       └── graph/
+│       │           └── schematic/        graph layout: pure functions, no React
 │       ├── Dockerfile
 │       └── nginx.conf
 ├── packages/                             shared libraries, never run on their own
@@ -101,16 +107,16 @@ Code that only one service needs stays in that service. All tables sit in `relat
 
 ## Stack
 
-| Concern         | Choice                                                            | Why                                                                                      |
-| --------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Backend         | NestJS, TypeScript, ESM                                           | Class-based, constructor DI                                                              |
-| Monorepo        | pnpm workspaces                                                   | A service cannot import a package it did not declare                                     |
-| Postgres access | Drizzle                                                           | Typed queries, no decorators on models, SQL migrations                                   |
-| Queue client    | `amqplib` with `amqp-connection-manager`                          | Control over acks and prefetch, which Nest's RMQ transport hides, plus reconnection      |
-| LLM clients     | Official `ollama` and `openai` SDKs, inside adapters              | OpenRouter and ChatGPT share the OpenAI-compatible adapter                               |
-| PDF             | `unpdf`                                                           | pdf.js without its optional native canvas                                                |
-| Markdown        | `marked` lexer                                                    | Handles code fences and both heading styles, which a hand-written parser would get wrong |
-| Frontend        | React, Vite, TanStack Query, React Router, `react-force-graph-2d` | Minimal design now, redesign later                                                       |
+| Concern         | Choice                                                | Why                                                                                      |
+| --------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Backend         | NestJS, TypeScript, ESM                               | Class-based, constructor DI                                                              |
+| Monorepo        | pnpm workspaces                                       | A service cannot import a package it did not declare                                     |
+| Postgres access | Drizzle                                               | Typed queries, no decorators on models, SQL migrations                                   |
+| Queue client    | `amqplib` with `amqp-connection-manager`              | Control over acks and prefetch, which Nest's RMQ transport hides, plus reconnection      |
+| LLM clients     | Official `ollama` and `openai` SDKs, inside adapters  | OpenRouter and ChatGPT share the OpenAI-compatible adapter                               |
+| PDF             | `unpdf`                                               | pdf.js without its optional native canvas                                                |
+| Markdown        | `marked` lexer                                        | Handles code fences and both heading styles, which a hand-written parser would get wrong |
+| Frontend        | React, Vite, TanStack Query, React Router, fontsource | No graph library: a force layout overlaps its labels, see Frontend                       |
 
 Dropped from the prototype: LangChain and LangGraph (the flow is fixed, there is no agent loop), GDS and Personalized PageRank (QASA replaces them).
 
@@ -251,7 +257,31 @@ Events: analysis, graph, token, citations, done, error. `Chunk.documentName` mea
 
 ## Frontend
 
-Two screens: documents (upload, status and progress by polling, delete, retry) and chat (conversations, chat, retrieved graph on the right, node size from activation, edge width from weight, seeds in another colour). Clicking an answer shows its graph. Data and state live in hooks and pure functions, views stay separate, so the later redesign touches only views. Answers stream with `fetch` and a readable stream, because `EventSource` cannot POST. nginx has `proxy_buffering off` for SSE.
+Two screens: documents (upload by button or by dropping files anywhere on the page, status and progress by polling, delete, retry) and chat (conversations, chat, retrieved graph on the right). Clicking an answer shows its graph. Data and state live in hooks and pure functions, views stay separate and each imports its own CSS, so a redesign touches only views. Answers stream with `fetch` and a readable stream, because `EventSource` cannot POST. nginx has `proxy_buffering off` for SSE.
+
+### Design
+
+A two-colour risograph print of a transit map. There are two inks on coloured paper, as tokens in `styles/base.css`: ink `#1a2ba6` and spot `#ff4d1c` on paper `#ffc9c0`. Lines overprint through `mix-blend-mode: multiply`, paper grain lies over the whole page, and the spot fill of a stop sits slightly out of register with its outline. A third colour would break the idea, so states are told apart by form: a dashed stamp for a running status, a filled one for a failure.
+
+The transit idea runs through both screens. A conversation is a vertical line whose stops are the questions, the active stop is filled, and a dot travels along the line while an answer streams. The chunks of a document are stops on a small line, filled as they get done.
+
+Type is Anton for display, Courier Prime for text and Familjen Grotesk for labels, self-hosted through fontsource so that the app needs no network. Anton has no Cyrillic, so Oswald takes over for it. Courier Prime has none either, and falls back to the system's Courier New.
+
+Spot on paper has a contrast of 2.27:1, below the 3:1 a mark should have, so nothing relies on it alone: a seed has an ink outline, the strongest path connects labelled stops and is in the legend, and small text is never set on spot.
+
+### The graph
+
+A force layout was tried first and gave a tangle whose labels overlap, so the graph is a schematic in SVG, deterministic so that an answer always gets the same picture. `features/graph/schematic/` is pure functions:
+
+- `columns.ts`: breadth-first hops from the strongest seed of each connected part give the columns, barycenter sweeps order them, and rows line up with neighbours, because straight lines read best.
+- `grid.ts`: fits the panel. Rows and columns tighten first, then the picture draws smaller, down to 70%, and only then does the panel scroll.
+- `ports.ts`: lines arrive at a node side by side, ordered by where they come from so that they do not cross. A node that takes more lines than fit stretches into a capsule, like an interchange.
+- `routing.ts`: horizontal, 45 degree and vertical runs. Every line leaves a node with the same short straight run, which keeps the lines of one fan from crossing. A vertical run shorter than a corner looks like a kink, so such a line gets a little steeper instead.
+- `node-labels.ts`: a node's label goes on the side that fewer of its lines head towards.
+- `edge-labels.ts`: one relation per node side, next to the node and on the side of the line away from the node's label. The rest show on hover.
+- `strongest-chain.ts`: the heaviest way through the graph, drawn in spot.
+
+Node width comes from activation and line width from path weight. Hovering keeps a stop and its neighbours lit and dims the rest, and a card with the details goes to the far side of the panel so that it never covers what it describes.
 
 ## Build
 
@@ -276,9 +306,9 @@ The whole stack in Docker Compose with `qwen3.5:4b` and `qwen3-embedding:0.6b` i
 - Answers were correct on a handful of questions, including several hops across documents ("Who pages the Payments Council, and which team is that person on?"). A follow-up was reformulated correctly ("Who else is on that team?" became "Who else is on the Search Team?"), thanks went to the conversation route, and a question about something else got "could not find".
 - Deleting `section-1.txt` took the graph from 50 to 36 entities with no stale entities or orphans left. Entities shared with other documents kept only their remaining descriptions, the file and the row went, questions about the deleted facts stopped being answered, and an old answer kept its graph and citations.
 - A PDF without text failed with the OCR message, and a duplicate and an unsupported file were rejected.
-- The UI was checked with a headless browser: the chat with sources, and the graph sized by the weights.
+- The UI was driven in headless Chrome at 1440x900, 1280x800, 800x1000 and 390x844: live answers streaming in English and in Russian, graphs of up to 20 nodes, hovering, an older answer's graph, opened sources, a file dropped on the page going through the status stamps, and a failed document.
 
-Not verified: anything on the Mac, OpenRouter's structured output and embeddings, a large document, a provider outage against the real stack, and systematic answer quality. Model speeds measured on the Windows GPU say nothing about the target.
+Not verified: anything on the Mac, the UI in Safari, OpenRouter's structured output and embeddings, a large document, a provider outage against the real stack, and systematic answer quality. Model speeds measured on the Windows GPU say nothing about the target.
 
 ## What real models taught
 

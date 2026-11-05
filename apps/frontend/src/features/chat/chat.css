@@ -1,0 +1,25 @@
+.chat {
+  display: grid;
+  grid-template-columns: minmax(400px, 5fr) minmax(460px, 7fr);
+  height: 100%;
+}
+
+.chat-column {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: var(--rule) solid var(--ink);
+}
+
+@media (max-width: 960px) {
+  .chat {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
+  }
+
+  .chat-column {
+    border-right: none;
+    border-bottom: var(--rule) solid var(--ink);
+  }
+}

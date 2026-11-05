@@ -29,5 +29,9 @@ export function useConversation(id: string | undefined) {
     queryFn: () => getConversation(id ?? ''),
     enabled: id !== undefined,
   });
-  return { messages: conversation.data?.messages ?? [], error: conversation.error };
+  return {
+    messages: conversation.data?.messages ?? [],
+    isLoading: conversation.isLoading,
+    error: conversation.error,
+  };
 }

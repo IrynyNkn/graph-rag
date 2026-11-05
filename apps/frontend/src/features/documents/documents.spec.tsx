@@ -91,7 +91,7 @@ describe('DocumentsPage', () => {
   it('invites an upload when there are no documents', async () => {
     renderPage();
 
-    expect(await screen.findByText(/No documents yet/)).toBeTruthy();
+    expect(await screen.findByText(/Nothing here yet/)).toBeTruthy();
   });
 
   it('shows a document with its status, progress and error', async () => {
@@ -118,6 +118,11 @@ describe('DocumentsPage', () => {
     );
 
     fireEvent.click(screen.getByText('Delete'));
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      `/api/indexing/documents/${ID}`,
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+    fireEvent.click(screen.getByText('Sure?'));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         `/api/indexing/documents/${ID}`,
@@ -143,6 +148,86 @@ describe('DocumentsPage', () => {
         expect.objectContaining({ method: 'POST', body: expect.any(FormData) }),
       ),
     );
+  });
+
+  it('forgets about a delete when the pointer leaves the button', async () => {
+    listed = [document()];
+    renderPage();
+
+    fireEvent.click(await screen.findByText('Delete'));
+    fireEvent.mouseLeave(screen.getByText('Sure?'));
+
+    expect(screen.getByText('Delete')).toBeTruthy();
+    expect(screen.queryByText('Sure?')).toBeNull();
+  });
+
+  it('shows chunks as stops, filled in as they get done', async () => {
+    listed = [document({ status: 'indexing', chunksTotal: 4, chunksDone: 2, chunksFailed: 1 })];
+
+    const client = new QueryClient();
+    const { container } = render(
+      <QueryClientProvider client={client}>
+        <DocumentsPage />
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText('report.pdf');
+    expect(container.querySelectorAll('.chunk-done')).toHaveLength(2);
+    expect(container.querySelectorAll('.chunk-failed')).toHaveLength(1);
+    expect(container.querySelectorAll('.chunk-pending')).toHaveLength(1);
+    client.clear();
+  });
+
+  it('draws at most so many stops for a long document', async () => {
+    listed = [document({ chunksTotal: 400, chunksDone: 200 })];
+
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocumentsPage />
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText('report.pdf');
+    expect(container.querySelectorAll('.chunk')).toHaveLength(32);
+  });
+
+  it('uploads files dropped anywhere on the page, and shows when it can', async () => {
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocumentsPage />
+      </QueryClientProvider>,
+    );
+    const page = container.querySelector('.documents') as HTMLElement;
+    const dataTransfer = { files: [new File(['text'], 'dropped.txt')] };
+
+    fireEvent.dragEnter(page, { dataTransfer });
+    expect(screen.getByText('Drop it')).toBeTruthy();
+
+    fireEvent.drop(page, { dataTransfer });
+    expect(screen.queryByText('Drop it')).toBeNull();
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/indexing/documents',
+        expect.objectContaining({ method: 'POST', body: expect.any(FormData) }),
+      ),
+    );
+  });
+
+  it('stops showing the drop target when the drag leaves the page', () => {
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocumentsPage />
+      </QueryClientProvider>,
+    );
+    const page = container.querySelector('.documents') as HTMLElement;
+
+    fireEvent.dragEnter(page);
+    fireEvent.dragEnter(page);
+    fireEvent.dragLeave(page);
+    expect(screen.getByText('Drop it')).toBeTruthy();
+
+    fireEvent.dragLeave(page);
+    expect(screen.queryByText('Drop it')).toBeNull();
   });
 
   it('shows why an upload was rejected', async () => {

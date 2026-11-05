@@ -1,5 +1,12 @@
 import type { Document } from '@graph-rag/contracts';
+import type { CSSProperties } from 'react';
+import { ConfirmButton } from '../../app/ConfirmButton';
+import { Halftone } from '../../app/Halftone';
 import { canDelete, canRetry, describeProgress, formatSize } from './document-view';
+
+const MAX_DRAWN_CHUNKS = 32;
+// A stamp is never quite straight, and the same document keeps its angle between polls.
+const STAMP_TILTS = [-3, 2, -1.5, 3, -2.5, 1];
 
 interface DocumentTableProps {
   documents: Document[];
@@ -9,16 +16,21 @@ interface DocumentTableProps {
 
 export function DocumentTable({ documents, onRemove, onRetry }: DocumentTableProps) {
   if (documents.length === 0) {
-    return <p className="muted">No documents yet. Upload a PDF, TXT or MD file.</p>;
+    return (
+      <div className="documents-empty">
+        <Halftone diameter={220} />
+        <p>Nothing here yet. Drop a PDF, TXT or MD file anywhere on this page.</p>
+      </div>
+    );
   }
   return (
     <table className="documents-table">
       <thead>
         <tr>
-          <th>Name</th>
+          <th>Document</th>
           <th>Size</th>
           <th>Status</th>
-          <th>Progress</th>
+          <th>Chunks</th>
           <th />
         </tr>
       </thead>
@@ -26,31 +38,66 @@ export function DocumentTable({ documents, onRemove, onRetry }: DocumentTablePro
         {documents.map((document) => (
           <tr key={document.id}>
             <td>
-              {document.name}
-              {document.error !== null && <div className="error">{document.error}</div>}
+              <span className="documents-name">{document.name}</span>
+              {document.error !== null && <div className="documents-error">{document.error}</div>}
             </td>
             <td>{formatSize(document.sizeBytes)}</td>
             <td>
-              <span className={`status status-${document.status}`}>{document.status}</span>
+              <span
+                className={`stamp stamp-${document.status}`}
+                style={{ '--tilt': `${tiltOf(document.id)}deg` } as CSSProperties}
+              >
+                {document.status}
+              </span>
             </td>
-            <td>{describeProgress(document)}</td>
             <td>
-              <div className="documents-actions">
-                {canRetry(document) && (
-                  <button type="button" className="button" onClick={() => onRetry(document.id)}>
-                    Retry
-                  </button>
-                )}
-                {canDelete(document) && (
-                  <button type="button" className="button" onClick={() => onRemove(document.id)}>
-                    Delete
-                  </button>
-                )}
-              </div>
+              <ChunkProgress document={document} />
+            </td>
+            <td className="documents-actions">
+              {canRetry(document) && (
+                <button type="button" onClick={() => onRetry(document.id)}>
+                  Retry
+                </button>
+              )}
+              {canDelete(document) && (
+                <ConfirmButton
+                  label={`Delete ${document.name}`}
+                  onConfirm={() => onRemove(document.id)}
+                >
+                  Delete
+                </ConfirmButton>
+              )}
             </td>
           </tr>
         ))}
       </tbody>
     </table>
+  );
+}
+
+function tiltOf(id: string): number {
+  const hash = [...id].reduce((sum, char) => sum + (char.codePointAt(0) ?? 0), 0);
+  return STAMP_TILTS[hash % STAMP_TILTS.length] ?? 0;
+}
+
+/** Chunks are stops on a line, filled in as they get done. */
+function ChunkProgress({ document }: { document: Document }) {
+  const { chunksTotal, chunksDone, chunksFailed } = document;
+  if (chunksTotal === 0) {
+    return null;
+  }
+  const drawn = Math.min(chunksTotal, MAX_DRAWN_CHUNKS);
+  const done = Math.round((chunksDone / chunksTotal) * drawn);
+  const failed = Math.round((chunksFailed / chunksTotal) * drawn);
+  return (
+    <>
+      <span className="chunk-line" aria-hidden="true">
+        {Array.from({ length: drawn }, (_, index) => {
+          const state = index < done ? 'done' : index < done + failed ? 'failed' : 'pending';
+          return <i key={index} className={`chunk chunk-${state}`} />;
+        })}
+      </span>
+      <span className="chunk-text">{describeProgress(document)}</span>
+    </>
   );
 }

@@ -1,0 +1,226 @@
+.documents {
+  position: relative;
+  height: 100%;
+  padding: 18px 28px 28px;
+  overflow-y: auto;
+}
+
+.documents-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0 20px;
+  margin-bottom: 14px;
+}
+
+.documents-header h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(64px, 8.4vw, 124px);
+  font-weight: 400;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.documents-upload {
+  margin-bottom: 18px;
+  padding: 10px 26px;
+  background: var(--spot);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 30px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transform: rotate(-3deg);
+  transition: transform 120ms;
+}
+
+.documents-upload:hover {
+  transform: rotate(2deg) scale(1.04);
+}
+
+.documents-upload:focus-within {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.documents-error {
+  margin: 4px 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.documents-error::before {
+  content: '! ';
+  color: var(--spot);
+}
+
+.documents-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.documents-table th {
+  padding: 6px 12px 6px 0;
+  border-top: var(--rule) solid var(--ink);
+  border-bottom: 1px dashed var(--ink);
+  font-weight: 400;
+  text-align: left;
+}
+
+.documents-table td {
+  padding: 9px 12px 9px 0;
+  border-bottom: 1px dashed var(--ink);
+  vertical-align: middle;
+}
+
+.documents-name {
+  font-family: var(--display);
+  font-size: 27px;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.documents-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.documents-actions button {
+  margin-left: 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.documents-actions button:hover {
+  text-decoration-color: var(--spot);
+  text-decoration-thickness: 3px;
+}
+
+.documents-actions button.is-asking {
+  background: var(--ink);
+  color: var(--paper);
+  text-decoration: none;
+}
+
+.stamp {
+  display: inline-block;
+  padding: 2px 9px;
+  border: 2px solid var(--ink);
+  font-weight: 700;
+  text-transform: uppercase;
+  transform: rotate(var(--tilt, -2deg));
+}
+
+/* Ink on spot is too faint at this size, so the spot prints out of register behind the stamp. */
+.stamp-failed {
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 3px 3px 0 var(--spot);
+}
+
+.stamp-queued,
+.stamp-indexing,
+.stamp-deleting {
+  border-style: dashed;
+  animation: stamp-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes stamp-pulse {
+  to {
+    opacity: 0.45;
+  }
+}
+
+.chunk-line {
+  display: inline-flex;
+  align-items: center;
+  height: 12px;
+  background: linear-gradient(var(--ink), var(--ink)) center / 100% 2px no-repeat;
+}
+
+.chunk {
+  width: 11px;
+  height: 11px;
+  margin-right: 7px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+.chunk:last-child {
+  margin-right: 0;
+}
+
+.chunk-done {
+  background: var(--spot);
+}
+
+.chunk-failed {
+  background: var(--ink);
+}
+
+.chunk-text {
+  display: block;
+  font-size: 12.5px;
+}
+
+.documents-empty {
+  display: grid;
+  justify-items: center;
+  margin-top: 40px;
+  text-align: center;
+}
+
+/* Fixed, because the page may be scrolled, and an absolute child would scroll away with it. */
+.documents-drop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: var(--spot);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 24vw;
+  line-height: 1;
+  text-transform: uppercase;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  .documents-table thead {
+    display: none;
+  }
+
+  .documents-table tr {
+    display: block;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--ink);
+  }
+
+  .documents-table td {
+    display: block;
+    padding: 3px 0;
+    border: none;
+  }
+
+  .documents-actions {
+    text-align: left;
+  }
+
+  .documents-actions button {
+    margin: 0 12px 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stamp {
+    animation: none;
+  }
+}

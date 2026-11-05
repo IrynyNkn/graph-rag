@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type KeyboardEvent } from 'react';
+import './Composer.css';
 
 interface ComposerProps {
   disabled: boolean;
@@ -38,7 +39,7 @@ export function Composer({ disabled, onSend }: ComposerProps) {
         onChange={(event) => setText(event.target.value)}
         onKeyDown={handleKeyDown}
       />
-      <button type="submit" className="button button-primary" disabled={!canSend}>
+      <button type="submit" className="composer-send" disabled={!canSend}>
         Send
       </button>
     </form>

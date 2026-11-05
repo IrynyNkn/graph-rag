@@ -1,0 +1,204 @@
+/* Two inks that overprint where they cross, so every line multiplies with what is under it. */
+.graph {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.graph-canvas {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.graph-svg {
+  display: block;
+}
+
+.graph-empty {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  height: 100%;
+}
+
+.graph-empty p {
+  margin: 14px 0 0;
+}
+
+.edge {
+  transition: opacity 120ms;
+}
+
+.edge.is-dimmed,
+.node.is-dimmed {
+  opacity: 0.15;
+}
+
+.edge-line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  mix-blend-mode: multiply;
+  animation: draw-edge 520ms ease-out both;
+  animation-delay: calc(var(--hop) * 240ms);
+}
+
+.edge.is-strongest .edge-line {
+  stroke: var(--spot);
+}
+
+.edge-hit-area {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 18;
+}
+
+.edge-label {
+  fill: var(--ink);
+  font-family: var(--text);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+@keyframes draw-edge {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Not filled forwards, because that would hold the opacity and defeat .is-dimmed. */
+.node {
+  animation: node-arrives 260ms ease-out backwards;
+  animation-delay: calc(var(--hop) * 240ms);
+  transition: opacity 120ms;
+}
+
+@keyframes node-arrives {
+  from {
+    opacity: 0;
+  }
+}
+
+.node-ground {
+  fill: var(--paper);
+}
+
+.node-spot {
+  fill: var(--spot);
+}
+
+.node-outline {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+
+.node.is-seed .node-outline {
+  stroke-width: 3.5;
+}
+
+.node-label {
+  fill: var(--ink);
+  font-family: var(--label);
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 4px;
+}
+
+.graph-legend {
+  display: flex;
+  flex: 0 0 var(--bottom-band);
+  flex-wrap: wrap;
+  align-content: center;
+  gap: 4px 18px;
+  padding: 0 20px;
+  border-top: var(--rule) solid var(--ink);
+  font-size: 12px;
+}
+
+.graph-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-seed {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--spot);
+}
+
+.legend-node {
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+}
+
+.legend-edge {
+  width: 22px;
+  height: 4px;
+  background: var(--ink);
+}
+
+.legend-strongest {
+  width: 22px;
+  height: 4px;
+  background: var(--spot);
+}
+
+.graph-card {
+  position: absolute;
+  bottom: calc(var(--bottom-band) + 16px);
+  width: 300px;
+  padding: 12px 14px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13.5px;
+  line-height: 1.35;
+  transform: rotate(-1deg);
+  pointer-events: none;
+}
+
+.graph-card.is-left {
+  left: 20px;
+}
+
+.graph-card.is-right {
+  right: 20px;
+}
+
+.graph-card h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.graph-card p {
+  margin: 4px 0 0;
+}
+
+.graph-card-meta {
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-line,
+  .node {
+    animation: none;
+  }
+}

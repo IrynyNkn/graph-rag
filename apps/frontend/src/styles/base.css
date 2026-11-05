@@ -1,0 +1,61 @@
+:root {
+  --paper: #ffc9c0;
+  --ink: #1a2ba6;
+  --spot: #ff4d1c;
+  --ink-faint: color-mix(in srgb, var(--ink) 50%, transparent);
+  /* Anton has no Cyrillic, so a question in another script falls through to Oswald. */
+  --display: Anton, Oswald, 'Arial Narrow', Impact, sans-serif;
+  --text: 'Courier Prime', 'Courier New', monospace;
+  --label: 'Familjen Grotesk Variable', 'Helvetica Neue', Arial, sans-serif;
+  --rule: 3px;
+  --bottom-band: 76px;
+  font-family: var(--text);
+  font-size: 16px;
+  color: var(--ink);
+  scrollbar-color: var(--ink) transparent;
+  scrollbar-width: thin;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+}
+
+/* The tooth of the paper, printed over everything. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.22;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.45 0 0 0 0 0.45 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+:focus-visible {
+  outline: 3px solid var(--spot);
+  outline-offset: 2px;
+}
