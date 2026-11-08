@@ -1,204 +1,400 @@
-/* Two inks that overprint where they cross, so every line multiplies with what is under it. */
+@property --sweep {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
 .graph {
   position: relative;
-  display: flex;
-  flex-direction: column;
   min-width: 0;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--sunken);
+  box-shadow: inset 1px 0 0 var(--line);
+
+  --edge: light-dark(rgb(28 28 18 / 24%), rgb(255 255 255 / 22%));
+  --edge-lit: light-dark(rgb(28 28 18 / 72%), rgb(255 255 255 / 78%));
+  --edge-dim: light-dark(rgb(28 28 18 / 7%), rgb(255 255 255 / 6%));
+  --dot: light-dark(rgb(28 28 18 / 13%), rgb(255 255 255 / 8%));
+  --dot-lit: light-dark(rgb(28 28 18 / 42%), rgb(255 255 255 / 34%));
+}
+
+.graph-header {
+  flex: none;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 16px 0 18px;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.graph-header h2 {
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.graph-counts {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.graph-counts b {
+  color: var(--text-2);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-counts i {
+  width: 2.5px;
+  height: 2.5px;
+  margin: 0 5px;
+  border-radius: 50%;
+  background: var(--text-3);
 }
 
 .graph-canvas {
+  position: relative;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+
+  --spot-x: 50%;
+  --spot-y: 50%;
+}
+
+.graph-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, var(--dot) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+  background-position: center;
+  mask-image: radial-gradient(ellipse at center, #000 35%, transparent 88%);
+  pointer-events: none;
+}
+
+.graph-dots.is-lit {
+  --dot: var(--dot-lit);
+  opacity: 0;
+  mask-image: radial-gradient(170px circle at var(--spot-x) var(--spot-y), #000, transparent);
+  transition: opacity 0.35s;
+}
+
+.graph-canvas:hover .graph-dots.is-lit {
+  opacity: 1;
+}
+
+.graph.is-searching .graph-dots.is-lit {
+  opacity: 1;
+  mask-image: radial-gradient(240px circle at var(--sweep) 50%, #000, transparent);
+  animation: graph-sweep 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes graph-sweep {
+  from {
+    --sweep: 8%;
+  }
+  to {
+    --sweep: 92%;
+  }
+}
+
+.graph-invitation {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+  font-size: 13.5px;
+  pointer-events: none;
+}
+
+.graph-scroll {
+  position: absolute;
+  inset: 0;
   overflow: auto;
 }
 
-.graph-svg {
+.graph-plane {
+  position: relative;
+  transform-origin: top left;
+}
+
+.graph-edges {
+  position: absolute;
+  inset: 0;
   display: block;
-}
-
-.graph-empty {
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  height: 100%;
-}
-
-.graph-empty p {
-  margin: 14px 0 0;
-}
-
-.edge {
-  transition: opacity 120ms;
-}
-
-.edge.is-dimmed,
-.node.is-dimmed {
-  opacity: 0.15;
+  overflow: visible;
 }
 
 .edge-line {
   fill: none;
-  stroke: var(--ink);
+  stroke: var(--edge);
+  stroke-opacity: calc(0.5 + var(--strength) * 0.5);
   stroke-linecap: round;
-  stroke-dasharray: 1;
-  mix-blend-mode: multiply;
-  animation: draw-edge 520ms ease-out both;
-  animation-delay: calc(var(--hop) * 240ms);
+  transition:
+    stroke 0.2s,
+    stroke-opacity 0.2s;
+}
+
+.edge.is-lit .edge-line,
+.edge.is-strongest .edge-line {
+  stroke-opacity: 1;
 }
 
 .edge.is-strongest .edge-line {
-  stroke: var(--spot);
+  stroke: var(--accent);
 }
 
-.edge-hit-area {
+.edge.is-lit .edge-line {
+  stroke: var(--edge-lit);
+}
+
+.edge.is-strongest.is-lit .edge-line {
+  stroke: var(--accent);
+}
+
+.edge.is-dimmed .edge-line {
+  stroke: var(--edge-dim);
+}
+
+.edge-target {
   fill: none;
   stroke: transparent;
-  stroke-width: 18;
+  stroke-width: 12;
+  pointer-events: stroke;
 }
 
-.edge-label {
-  fill: var(--ink);
-  font-family: var(--text);
-  font-size: 12px;
+.edge-pulse {
+  fill: none;
+  stroke: light-dark(#fff, #ffe2d1);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 0.09 1;
+  animation: edge-pulse 1.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   pointer-events: none;
 }
 
-@keyframes draw-edge {
+@keyframes edge-pulse {
   from {
-    stroke-dashoffset: 1;
+    stroke-dashoffset: 0.09;
   }
   to {
-    stroke-dashoffset: 0;
+    stroke-dashoffset: -1;
   }
 }
 
-/* Not filled forwards, because that would hold the opacity and defeat .is-dimmed. */
+.graph-column-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: var(--text-3);
+  font-size: 11.5px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .node {
-  animation: node-arrives 260ms ease-out backwards;
-  animation-delay: calc(var(--hop) * 240ms);
-  transition: opacity 120ms;
-}
-
-@keyframes node-arrives {
-  from {
-    opacity: 0;
-  }
-}
-
-.node-ground {
-  fill: var(--paper);
-}
-
-.node-spot {
-  fill: var(--spot);
-}
-
-.node-outline {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 3;
-}
-
-.node.is-seed .node-outline {
-  stroke-width: 3.5;
-}
-
-.node-label {
-  fill: var(--ink);
-  font-family: var(--label);
-  font-size: 13px;
-  font-weight: 700;
-  text-anchor: middle;
-  paint-order: stroke;
-  stroke: var(--paper);
-  stroke-width: 4px;
-}
-
-.graph-legend {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: flex;
-  flex: 0 0 var(--bottom-band);
-  flex-wrap: wrap;
-  align-content: center;
-  gap: 4px 18px;
-  padding: 0 20px;
-  border-top: var(--rule) solid var(--ink);
-  font-size: 12px;
-}
-
-.graph-legend span {
-  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  padding: 0 11px 0 9px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--raised);
+  box-shadow:
+    0 0 0 1px var(--line-strong),
+    0 1px 2px light-dark(rgb(28 28 18 / 6%), rgb(0 0 0 / 40%));
+  color: color-mix(in oklab, var(--text) calc(58% + var(--strength) * 42%), var(--raised));
+  font-size: 12.5px;
+  font-weight: 450;
+  line-height: 16px;
+  letter-spacing: -0.012em;
+  text-align: left;
+  white-space: nowrap;
+  cursor: default;
+  transition:
+    color 0.18s,
+    background 0.18s,
+    box-shadow 0.18s;
 }
 
-.legend-seed {
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--ink);
+.node-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--spot);
+  background: currentColor;
+  opacity: calc(0.25 + var(--strength) * 0.75);
 }
 
-.legend-node {
-  width: 11px;
-  height: 11px;
-  border: 2px solid var(--ink);
-  border-radius: 50%;
+.node-name span {
+  display: block;
 }
 
-.legend-edge {
-  width: 22px;
-  height: 4px;
-  background: var(--ink);
+.node.is-on-path {
+  color: var(--text);
 }
 
-.legend-strongest {
-  width: 22px;
-  height: 4px;
-  background: var(--spot);
+.node.is-on-path .node-dot {
+  background: var(--accent);
+  opacity: 1;
+}
+
+.node.is-seed {
+  color: var(--text);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--accent) 55%, var(--raised)),
+    0 1px 2px light-dark(rgb(28 28 18 / 6%), rgb(0 0 0 / 40%));
+}
+
+.node.is-seed .node-dot {
+  background: var(--accent);
+  opacity: 1;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.node.is-focused {
+  color: var(--text);
+  background: var(--raised-hover);
+  box-shadow:
+    0 0 0 1px var(--text-3),
+    0 4px 14px light-dark(rgb(28 28 18 / 10%), rgb(0 0 0 / 50%));
+  z-index: 2;
+}
+
+.node.is-dimmed {
+  color: var(--text-3);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.node.is-dimmed .node-dot {
+  opacity: 0.25;
+  box-shadow: none;
+  background: currentColor;
+}
+
+.edge-label {
+  position: absolute;
+  z-index: 3;
+  padding: 0 4px;
+  margin-left: -4px;
+  border-radius: 4px;
+  background: var(--sunken);
+  color: var(--text-2);
+  font-size: 11px;
+  line-height: 15px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.edge-label.is-centred {
+  margin-left: 0;
+  padding: 1px 6px;
+  background: var(--raised);
+  box-shadow: 0 0 0 1px var(--line-strong);
+  translate: -50% -50%;
 }
 
 .graph-card {
   position: absolute;
-  bottom: calc(var(--bottom-band) + 16px);
-  width: 300px;
-  padding: 12px 14px;
-  background: var(--ink);
-  color: var(--paper);
-  font-size: 13.5px;
-  line-height: 1.35;
-  transform: rotate(-1deg);
+  top: 0;
+  left: 0;
+  z-index: 5;
+  width: 284px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--raised);
+  box-shadow: var(--shadow-pop);
+  font-size: 13px;
+  line-height: 1.5;
   pointer-events: none;
 }
 
-.graph-card.is-left {
-  left: 20px;
-}
-
-.graph-card.is-right {
-  right: 20px;
+.graph-card-body {
+  padding: 11px 13px 12px;
 }
 
 .graph-card h3 {
-  margin: 0;
-  font-family: var(--display);
-  font-size: 20px;
-  font-weight: 400;
-  text-transform: uppercase;
+  font-size: 13.5px;
+  font-weight: 550;
+  letter-spacing: -0.014em;
 }
 
 .graph-card p {
-  margin: 4px 0 0;
+  margin-top: 4px;
+  color: var(--text-2);
 }
 
-.graph-card-meta {
-  opacity: 0.8;
+.graph-card .graph-card-meta {
+  margin-top: 1px;
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: -0.02em;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .edge-line,
-  .node {
-    animation: none;
+.graph-legend {
+  position: absolute;
+  left: 18px;
+  bottom: 14px;
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  color: var(--text-3);
+  font-size: 11.5px;
+  pointer-events: none;
+}
+
+.graph-legend div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.graph-legend dd {
+  margin: 0;
+}
+
+.legend-seed {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2.5px var(--accent-soft);
+}
+
+.legend-link {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--edge-lit);
+  opacity: 0.6;
+}
+
+.legend-path {
+  width: 16px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+@media (max-width: 860px) {
+  .graph {
+    min-height: 620px;
+    box-shadow: inset 0 1px 0 var(--line);
+    border-radius: 0 0 14px 14px;
+  }
+
+  .graph-legend div:nth-child(2) {
+    display: none;
   }
 }

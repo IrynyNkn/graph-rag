@@ -1,9 +1,22 @@
-import type { GraphFocus } from './GraphFocusCard';
-import type { PlacedEdge, SchematicLayout } from './schematic/layout';
+import type { Panel } from './flow/grid';
+import type { FlowLayout, PlacedEdge, PlacedNode } from './flow/layout';
+import type { Point } from './flow/routing';
 
-const LABEL_CHARS_PER_LINE = 22;
-// The row gap has room for this many. The full name shows on hover.
-const LABEL_MAX_LINES = 2;
+export const CARD_WIDTH = 284;
+const CARD_MARGIN = 14;
+// The legend runs along the bottom of the panel.
+const CARD_MARGIN_BOTTOM = 42;
+// Rows leave room above a chip for one line of text.
+const LABEL_LIFT = 19;
+
+export type GraphFocus = { kind: 'node'; node: PlacedNode } | { kind: 'edge'; edge: PlacedEdge };
+
+export interface RelationLabel extends Point {
+  id: string;
+  text: string;
+  /** On the middle of its line, rather than from the top left of the chip it belongs to. */
+  isCentred: boolean;
+}
 
 export function edgeIsLit(focus: GraphFocus, edge: PlacedEdge): boolean {
   return focus.kind === 'edge'
@@ -11,7 +24,7 @@ export function edgeIsLit(focus: GraphFocus, edge: PlacedEdge): boolean {
     : edge.source === focus.node.name || edge.target === focus.node.name;
 }
 
-/** A hovered stop keeps its neighbours readable, because they are what the hover is asking about. */
+/** A hovered node keeps its neighbours readable, because they are what the hover is asking about. */
 export function findLitNodes(focus: GraphFocus, edges: PlacedEdge[]): Set<string> {
   if (focus.kind === 'edge') {
     return new Set([focus.edge.source, focus.edge.target]);
@@ -22,34 +35,89 @@ export function findLitNodes(focus: GraphFocus, edges: PlacedEdge[]): Set<string
   return new Set([focus.node.name, ...linked]);
 }
 
-export function isStillDrawn(focus: GraphFocus, layout: SchematicLayout): boolean {
+export function isStillDrawn(focus: GraphFocus, layout: FlowLayout): boolean {
   return focus.kind === 'node'
     ? layout.nodes.includes(focus.node)
     : layout.edges.includes(focus.edge);
 }
 
-/** The card goes to the far side, so that it never covers what it describes. */
-export function findCardSide(focus: GraphFocus, panelWidth: number): 'left' | 'right' {
-  const x = focus.kind === 'node' ? focus.node.x : focus.edge.midX;
-  return x > panelWidth / 2 ? 'left' : 'right';
+/**
+ * A line of a fan is only apart from the others near its far end, so a hovered node labels its
+ * relations above its neighbours. Rows are far enough apart that these labels never collide.
+ */
+export function findRelationLabels(focus: GraphFocus, layout: FlowLayout): RelationLabel[] {
+  if (focus.kind === 'edge') {
+    const { edge } = focus;
+    const text = describeRelation(edge);
+    return [{ id: edge.id, text, x: edge.midX, y: edge.midY, isCentred: true }];
+  }
+  const byName = new Map(layout.nodes.map((node) => [node.name, node]));
+  return layout.edges
+    .filter((edge) => edgeIsLit(focus, edge))
+    .flatMap((edge) => {
+      const other = byName.get(edge.source === focus.node.name ? edge.target : edge.source);
+      if (other === undefined) {
+        return [];
+      }
+      const y = other.y - other.height / 2 - LABEL_LIFT;
+      return [{ id: edge.id, text: describeRelation(edge), x: other.x, y, isCentred: false }];
+    });
 }
 
-export function wrapNodeLabel(name: string): string[] {
-  const lines: string[] = [];
-  let current = '';
-  for (const word of name.split(' ')) {
-    if (current.length > 0 && current.length + word.length + 1 > LABEL_CHARS_PER_LINE) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = current.length > 0 ? `${current} ${word}` : word;
-    }
-  }
-  lines.push(current);
-  if (lines.length <= LABEL_MAX_LINES) {
-    return lines;
-  }
-  return lines.slice(0, LABEL_MAX_LINES).map((line, index) => {
-    return index === LABEL_MAX_LINES - 1 ? `${line}…` : line;
-  });
+function describeRelation(edge: PlacedEdge): string {
+  const relation = edge.relations[0] ?? '';
+  return edge.readsForward ? `${relation} →` : `← ${relation}`;
+}
+
+/** The corner that covers the fewest of the lit chips, and of those the nearest to the focus. */
+export function placeCard(
+  focus: GraphFocus,
+  layout: FlowLayout,
+  panel: Panel,
+  cardHeight: number,
+): Point {
+  const lit = findLitNodes(focus, layout.edges);
+  const chips = layout.nodes.filter((node) => lit.has(node.name));
+  const anchor = findAnchor(focus, layout.scale);
+  const corners = findCorners(panel, cardHeight);
+  const scored = corners.map((corner) => ({
+    corner,
+    covered: chips.filter((node) => coversChip(corner, cardHeight, node, layout.scale)).length,
+    distance: Math.hypot(
+      corner.x + CARD_WIDTH / 2 - anchor.x,
+      corner.y + cardHeight / 2 - anchor.y,
+    ),
+  }));
+  const [best] = scored.toSorted((a, b) => a.covered - b.covered || a.distance - b.distance);
+  return best?.corner ?? { x: CARD_MARGIN, y: CARD_MARGIN };
+}
+
+function findCorners(panel: Panel, cardHeight: number): Point[] {
+  const right = Math.max(CARD_MARGIN, panel.width - CARD_WIDTH - CARD_MARGIN);
+  const bottom = Math.max(CARD_MARGIN, panel.height - cardHeight - CARD_MARGIN_BOTTOM);
+  return [
+    { x: right, y: bottom },
+    { x: right, y: CARD_MARGIN },
+    { x: CARD_MARGIN, y: bottom },
+    { x: CARD_MARGIN, y: CARD_MARGIN },
+  ];
+}
+
+function coversChip(corner: Point, cardHeight: number, node: PlacedNode, scale: number): boolean {
+  const left = node.x * scale;
+  const right = (node.x + node.width) * scale;
+  const top = (node.y - node.height / 2) * scale;
+  const bottom = (node.y + node.height / 2) * scale;
+  return (
+    left < corner.x + CARD_WIDTH &&
+    right > corner.x &&
+    top < corner.y + cardHeight &&
+    bottom > corner.y
+  );
+}
+
+function findAnchor(focus: GraphFocus, scale: number): Point {
+  return focus.kind === 'node'
+    ? { x: (focus.node.x + focus.node.width / 2) * scale, y: focus.node.y * scale }
+    : { x: focus.edge.midX * scale, y: focus.edge.midY * scale };
 }

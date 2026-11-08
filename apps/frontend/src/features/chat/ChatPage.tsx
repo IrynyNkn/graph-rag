@@ -2,18 +2,18 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { GraphView } from '../graph/GraphView';
 import { Composer } from './Composer';
-import { ConversationPicker } from './ConversationPicker';
 import { MessageList } from './MessageList';
 import { IDLE_TURN } from './turn-state';
-import { selectGraph } from './turns';
+import { isChatEmpty, selectGraph } from './turns';
 import { useConversation, useConversations } from './use-conversations';
+import { useHeldGraph } from './use-held-graph';
 import { useTurn } from './use-turn';
 import './chat.css';
 
 export function ChatPage() {
   const { conversationId } = useParams();
   const navigate = useNavigate();
-  const { conversations, error: listError, create, remove } = useConversations();
+  const { error: listError, create } = useConversations();
   const { messages, isLoading, error: conversationError } = useConversation(conversationId);
   const failure = conversationError ?? listError;
   const { turn: anyTurn, send } = useTurn();
@@ -21,6 +21,8 @@ export function ChatPage() {
 
   // A turn keeps running while the user looks at another conversation, but it belongs to its own.
   const turn = anyTurn.conversationId === conversationId ? anyTurn : IDLE_TURN;
+  const isEmpty = isChatEmpty(messages, turn, isLoading);
+  const graph = useHeldGraph(selectGraph(turn, messages, selectedMessageId), isLoading);
 
   const handleSend = async (question: string) => {
     const id = conversationId ?? (await create()).id;
@@ -31,35 +33,24 @@ export function ChatPage() {
     await send(id, question);
   };
 
-  // Leaves first: an open conversation would be refetched after the delete, and retried on its 404.
-  const handleRemove = async (id: string) => {
-    if (id === conversationId) {
-      navigate('/chat');
-    }
-    await remove(id);
-  };
-
   return (
     <div className="chat">
-      <section className="chat-column">
-        <ConversationPicker
-          conversations={conversations}
-          activeId={conversationId}
-          onNew={() => navigate('/chat')}
-          onRemove={handleRemove}
-        />
-        {failure !== null && <p className="timeline-error is-global">{failure.message}</p>}
+      <section className={isEmpty ? 'chat-column is-empty' : 'chat-column'}>
+        {failure !== null && <p className="chat-error">{failure.message}</p>}
         <MessageList
           messages={messages}
           turn={turn}
-          isLoading={isLoading}
+          isEmpty={isEmpty}
           selectedMessageId={selectedMessageId}
           onSelect={setSelectedMessageId}
         />
-        <Composer disabled={anyTurn.isStreaming} onSend={handleSend} />
+        <Composer isCentered={isEmpty} disabled={anyTurn.isStreaming} onSend={handleSend} />
       </section>
-      {/* Both empty states are loud, so they would flash on the way to a saved conversation. */}
-      {!isLoading && <GraphView graph={selectGraph(turn, messages, selectedMessageId)} />}
+      <GraphView
+        graph={graph}
+        isSearching={turn.isStreaming && turn.graph === null}
+        isAnswering={turn.isStreaming && turn.graph !== null}
+      />
     </div>
   );
 }

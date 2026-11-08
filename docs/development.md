@@ -28,7 +28,7 @@ apps/
                             indexing/{parsing,chunking,extraction,resolution}, removal, knowledge
   assistant-service/src/  presentation, infrastructure/repositories, application/
                             conversations, turns, query/{analysis,retrieval,answering}
-  frontend/src/           app, api, styles, features/{documents,chat,graph/schematic}
+  frontend/src/           app, api, styles, features/{documents,chat,graph/flow}
 packages/                 contracts, inference, graph-store, relational-store, file-store,
                           job-queue, nest-common, testing (dev only)
 ```
@@ -65,9 +65,9 @@ Dependencies point at `application`: `presentation -> application <- infrastruct
 
 ## Frontend code
 
-React function components and hooks. Keep data and state in hooks and pure functions, apart from view components, so that a redesign touches only the views. Each view imports its own CSS file, and colours and fonts are tokens in `styles/base.css`.
+React function components and hooks. Keep data and state in hooks and pure functions, apart from view components, so that a redesign touches only the views. Each view imports its own CSS file, and colours and fonts are tokens in `styles/base.css`, each with its light and dark value through `light-dark()`.
 
-The design is a two-colour print, described in [Architecture](architecture.md#frontend). Keep to its two inks on paper: a new state gets a new form, not a new colour.
+The design is described in [Architecture](architecture.md#frontend). Keep the accent for what the graph has to say, and check every change in both themes. Animate through the presets in `app/motion.ts`: motion answers an event and then stops, and nothing moves while the page is idle. Tests skip animations through `src/test-setup.ts`, so an element that leaves still takes a tick, and needs `waitFor`.
 
 ## Tests
 

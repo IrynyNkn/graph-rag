@@ -1,7 +1,8 @@
 import type { Citation, Message, RetrievedGraph } from '@graph-rag/contracts';
 import { describe, expect, it } from 'vitest';
+import { splitAnswer } from './answer-parts';
 import { applyTurnEvent, finishTurn, IDLE_TURN, startTurn } from './turn-state';
-import { findActiveAnswer, groupIntoTurns, selectGraph } from './turns';
+import { findActiveAnswer, findLivePlace, groupIntoTurns, isChatEmpty, selectGraph } from './turns';
 
 const graphOf = (name: string): RetrievedGraph => ({
   nodes: [{ name, type: null, description: null, activation: 1, isSeed: true }],
@@ -101,6 +102,68 @@ describe('groupIntoTurns', () => {
     const turns = groupIntoTurns([answer(1, null)]);
 
     expect(turns).toEqual([{ question: null, answer: answer(1, null) }]);
+  });
+});
+
+describe('isChatEmpty', () => {
+  it('is empty only when nothing has been asked and nothing is on its way', () => {
+    expect(isChatEmpty([], IDLE_TURN, false)).toBe(true);
+    expect(isChatEmpty([], IDLE_TURN, true)).toBe(false);
+    expect(isChatEmpty([question(1)], IDLE_TURN, false)).toBe(false);
+    expect(isChatEmpty([], startTurn('id', 'Q'), false)).toBe(false);
+  });
+});
+
+describe('findLivePlace', () => {
+  const asked = (id: number, content: string): Message => ({ ...question(id), content });
+  const saved = (id: number, content: string): Message => ({ ...answer(id, null), content });
+
+  it('has no place without a turn', () => {
+    expect(findLivePlace([], IDLE_TURN)).toBe('none');
+  });
+
+  it('opens a new turn for a question that is not saved yet', () => {
+    const turns = groupIntoTurns([asked(1, 'Older'), saved(2, 'Older answer')]);
+
+    expect(findLivePlace(turns, startTurn('id', 'New'))).toBe('new-turn');
+    expect(findLivePlace([], startTurn('id', 'New'))).toBe('new-turn');
+  });
+
+  it('joins the saved question when a reload brought it in early', () => {
+    const turns = groupIntoTurns([asked(1, 'New')]);
+
+    expect(findLivePlace(turns, startTurn('id', 'New'))).toBe('last-turn');
+  });
+
+  it('opens a new turn when the same question is asked again', () => {
+    const turns = groupIntoTurns([asked(1, 'Same'), saved(2, 'The first answer')]);
+
+    expect(findLivePlace(turns, startTurn('id', 'Same'))).toBe('new-turn');
+  });
+
+  it('steps aside once the saved answer has arrived', () => {
+    const turns = groupIntoTurns([asked(1, 'Q'), saved(2, 'Done.')]);
+    const turn = { ...startTurn('id', 'Q'), text: 'Done. ' };
+
+    expect(findLivePlace(turns, turn)).toBe('none');
+  });
+});
+
+describe('splitAnswer', () => {
+  it('marks what a model has bolded', () => {
+    expect(splitAnswer('It is **Alice** who')).toEqual([
+      { text: 'It is ', isBold: false },
+      { text: 'Alice', isBold: true },
+      { text: ' who', isBold: false },
+    ]);
+  });
+
+  it('drops the asterisks of a pair that is only half there', () => {
+    expect(splitAnswer('It is **Ali')).toEqual([{ text: 'It is Ali', isBold: false }]);
+  });
+
+  it('has no parts for no text', () => {
+    expect(splitAnswer('')).toEqual([]);
   });
 });
 

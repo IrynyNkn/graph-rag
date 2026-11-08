@@ -3,7 +3,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { canDelete, canRetry, describeProgress, formatSize, isInProgress } from './document-view';
+import {
+  canDelete,
+  canRetry,
+  describeProgress,
+  findProgressShares,
+  formatSize,
+  isInProgress,
+  summarizeDocuments,
+} from './document-view';
 import { DocumentsPage } from './DocumentsPage';
 
 const ID = '6a3f3f62-0a4c-4f7e-9a53-000000000001';
@@ -56,6 +64,27 @@ describe('document view helpers', () => {
     expect(formatSize(10)).toBe('10 B');
     expect(formatSize(2048)).toBe('2 KB');
     expect(formatSize(3 * 1024 * 1024)).toBe('3.0 MB');
+  });
+
+  it('finds the shares of chunks done and failed', () => {
+    expect(findProgressShares(document({ chunksDone: 2, chunksFailed: 1 }))).toEqual({
+      done: 0.5,
+      failed: 0.25,
+    });
+    expect(findProgressShares(document({ chunksTotal: 0 }))).toEqual({ done: 0, failed: 0 });
+  });
+
+  it('sums documents up by status, and leaves out what has none', () => {
+    expect(summarizeDocuments([])).toBe('0 documents');
+    expect(summarizeDocuments([document()])).toBe('1 document · 1 indexed');
+    expect(
+      summarizeDocuments([
+        document(),
+        document(),
+        document({ status: 'failed' }),
+        document({ status: 'deleting' }),
+      ]),
+    ).toBe('4 documents · 2 indexed · 1 failed');
   });
 });
 
@@ -161,9 +190,8 @@ describe('DocumentsPage', () => {
     expect(screen.queryByText('Sure?')).toBeNull();
   });
 
-  it('shows chunks as stops, filled in as they get done', async () => {
+  it('shows a progress bar only while a document is being worked on', async () => {
     listed = [document({ status: 'indexing', chunksTotal: 4, chunksDone: 2, chunksFailed: 1 })];
-
     const client = new QueryClient();
     const { container } = render(
       <QueryClientProvider client={client}>
@@ -172,15 +200,13 @@ describe('DocumentsPage', () => {
     );
 
     await screen.findByText('report.pdf');
-    expect(container.querySelectorAll('.chunk-done')).toHaveLength(2);
-    expect(container.querySelectorAll('.chunk-failed')).toHaveLength(1);
-    expect(container.querySelectorAll('.chunk-pending')).toHaveLength(1);
+    expect(container.querySelectorAll('.progress-bar')).toHaveLength(1);
+    expect(screen.getByText('2/4 chunks, 1 failed')).toBeTruthy();
     client.clear();
   });
 
-  it('draws at most so many stops for a long document', async () => {
-    listed = [document({ chunksTotal: 400, chunksDone: 200 })];
-
+  it('leaves the bar out once a document is indexed', async () => {
+    listed = [document()];
     const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
         <DocumentsPage />
@@ -188,7 +214,8 @@ describe('DocumentsPage', () => {
     );
 
     await screen.findByText('report.pdf');
-    expect(container.querySelectorAll('.chunk')).toHaveLength(32);
+    expect(container.querySelectorAll('.progress-bar')).toHaveLength(0);
+    expect(screen.getByText('1 document · 1 indexed')).toBeTruthy();
   });
 
   it('uploads files dropped anywhere on the page, and shows when it can', async () => {
@@ -201,10 +228,10 @@ describe('DocumentsPage', () => {
     const dataTransfer = { files: [new File(['text'], 'dropped.txt')] };
 
     fireEvent.dragEnter(page, { dataTransfer });
-    expect(screen.getByText('Drop it')).toBeTruthy();
+    expect(screen.getByText('Drop to upload')).toBeTruthy();
 
     fireEvent.drop(page, { dataTransfer });
-    expect(screen.queryByText('Drop it')).toBeNull();
+    await waitFor(() => expect(screen.queryByText('Drop to upload')).toBeNull());
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/indexing/documents',
@@ -213,7 +240,7 @@ describe('DocumentsPage', () => {
     );
   });
 
-  it('stops showing the drop target when the drag leaves the page', () => {
+  it('stops showing the drop target when the drag leaves the page', async () => {
     const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
         <DocumentsPage />
@@ -224,10 +251,10 @@ describe('DocumentsPage', () => {
     fireEvent.dragEnter(page);
     fireEvent.dragEnter(page);
     fireEvent.dragLeave(page);
-    expect(screen.getByText('Drop it')).toBeTruthy();
+    expect(screen.getByText('Drop to upload')).toBeTruthy();
 
     fireEvent.dragLeave(page);
-    expect(screen.queryByText('Drop it')).toBeNull();
+    await waitFor(() => expect(screen.queryByText('Drop to upload')).toBeNull());
   });
 
   it('shows why an upload was rejected', async () => {

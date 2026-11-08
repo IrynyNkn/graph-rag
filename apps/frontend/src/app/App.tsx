@@ -1,18 +1,13 @@
-import { Navigate, NavLink, Route, Routes } from 'react-router';
+import { Navigate, Route, Routes } from 'react-router';
 import { ChatPage } from '../features/chat/ChatPage';
 import { DocumentsPage } from '../features/documents/DocumentsPage';
+import { TopBar } from './TopBar';
 import './app.css';
 
 export function App() {
   return (
     <div className="app">
-      <header className="app-header">
-        <span className="app-title">Graph RAG</span>
-        <nav className="app-nav">
-          <NavLink to="/chat">Chat</NavLink>
-          <NavLink to="/documents">Documents</NavLink>
-        </nav>
-      </header>
+      <TopBar />
       <main className="app-main">
         <Routes>
           <Route path="/" element={<Navigate to="/chat" replace />} />

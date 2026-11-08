@@ -25,6 +25,22 @@ export function describeProgress(document: Document): string {
   return hasFailedChunks(document) ? `${done}, ${document.chunksFailed} failed` : done;
 }
 
+export function findProgressShares(document: Document): { done: number; failed: number } {
+  const { chunksTotal, chunksDone, chunksFailed } = document;
+  return chunksTotal === 0
+    ? { done: 0, failed: 0 }
+    : { done: chunksDone / chunksTotal, failed: chunksFailed / chunksTotal };
+}
+
+export function summarizeDocuments(documents: Document[]): string {
+  const total = `${documents.length} ${documents.length === 1 ? 'document' : 'documents'}`;
+  const byStatus = (['indexed', 'indexing', 'queued', 'failed'] as const)
+    .map((status) => [status, documents.filter((item) => item.status === status).length] as const)
+    .filter(([, count]) => count > 0)
+    .map(([status, count]) => `${count} ${status}`);
+  return [total, ...byStatus].join(' · ');
+}
+
 export function formatSize(bytes: number): string {
   if (bytes < KILOBYTE) {
     return `${bytes} B`;

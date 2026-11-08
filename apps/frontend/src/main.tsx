@@ -1,13 +1,13 @@
-import '@fontsource/anton';
-import '@fontsource/courier-prime/400.css';
-import '@fontsource/courier-prime/700.css';
-import '@fontsource/oswald/cyrillic-700.css';
-import '@fontsource-variable/familjen-grotesk';
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { Providers } from './app/Providers';
+import { applyStoredTheme } from './app/use-theme';
 import './styles/base.css';
+
+applyStoredTheme();
 
 const root = document.getElementById('root');
 if (root === null) {

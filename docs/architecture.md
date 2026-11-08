@@ -80,9 +80,13 @@ Chat and embedding providers are configured separately, and each service sets it
 
 Two screens: documents, and chat with the retrieved graph on the right. Answers stream with `fetch` and a readable stream, because `EventSource` cannot POST.
 
-The design is a two-colour risograph print of a transit map: ink `#1a2ba6` and spot `#ff4d1c` on paper `#ffc9c0`, with lines overprinting through `mix-blend-mode: multiply` and paper grain over the page. A conversation is a line whose stops are the questions, and the chunks of a document are stops on a small line. Fonts are self-hosted, so the app needs no network. Spot on paper has a contrast of only 2.27:1, so nothing relies on it alone: a seed has an ink outline, the strongest path connects labelled stops, and small text is never set on spot.
+The design is a calm, neutral product with light and dark themes, which follow the system until the user picks one. Colours are warm greys, with one accent kept for what the graph has to say: seeds and the strongest path. Primary actions use the inverted neutral, not the accent. Fonts are self-hosted, so the app needs no network.
 
-The graph is a deterministic SVG schematic in `features/graph/schematic/`, because a force layout overlaps its labels. Node width comes from activation and line width from path weight, and a dense graph draws smaller, down to 70%, before the panel scrolls.
+There is no sidebar of chats, because that is the layout every chat app has, and this is a tool for looking at a graph. Conversations live in a palette that opens from the top bar or with Cmd+K or Ctrl+K, and the graph gets the width a sidebar would take. A snapshot of the sidebar layout is kept in `git stash`, in case it is wanted back.
+
+The graph is a deterministic flow in `features/graph/flow/`, because a force layout overlaps its labels. Each column is one hop further from the seed, chips stay apart, and a dense graph draws smaller, down to 70%, before the panel scrolls. Chip text gets brighter with activation, on a root scale because a few nodes take most of it, and line width follows edge weight. The strongest path is the way from the first column with the most total weight. Chip widths are estimated from letter widths, so layout needs no canvas and no loaded font: a line starts hidden behind its chip, so a wrong estimate cannot show a gap.
+
+Motion follows events and stops when nothing happens, which also saves the battery. The graph unfolds a hop at a time, and when another graph replaces it, what the two share travels to its new place, because edges and chips keep their identity. That needs every line to have the same path commands. The graph and older turns are memoised, because the page re-renders for every token.
 
 ## What real models taught
 
@@ -91,7 +95,7 @@ The graph is a deterministic SVG schematic in `features/graph/schematic/`, becau
 
 ## What was verified
 
-On the Windows PC with Docker Desktop, `qwen3.5:4b` and `qwen3-embedding:0.6b`: the test suite; extraction, entity merging across documents and formats, multi-hop answers, follow-up reformulation and routing on `test-data/`; removal leaving no stale entities or orphans; the UI in headless Chrome at sizes from 1440x900 down to 390x844; and a clean clone started from nothing by following [Running](running.md). All four images also build for arm64 under emulation, where the services load as far as their config check and nginx accepts its config.
+On the Windows PC with Docker Desktop, `qwen3.5:4b` and `qwen3-embedding:0.6b`: the test suite; extraction, entity merging across documents and formats, multi-hop answers, follow-up reformulation and routing on `test-data/`; removal leaving no stale entities or orphans; the UI in headless Chrome at sizes from 1440x900 down to 390x844, in both themes, with a live answer streamed into it; and a clean clone started from nothing by following [Running](running.md). All four images also build for arm64 under emulation, where the services load as far as their config check and nginx accepts its config.
 
 Not verified: anything on the Mac, the UI in Safari, OpenRouter against the real API, a large document, a provider outage against the real stack, and systematic answer quality.
 

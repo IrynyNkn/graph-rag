@@ -18,5 +18,6 @@ export default defineConfig({
     root: import.meta.dirname,
     include: ['src/**/*.spec.{ts,tsx}'],
     environment: 'jsdom',
+    setupFiles: ['src/test-setup.ts'],
   },
 });

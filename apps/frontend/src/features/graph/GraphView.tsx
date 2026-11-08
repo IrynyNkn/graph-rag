@@ -1,45 +1,80 @@
 import type { RetrievedGraph } from '@graph-rag/contracts';
-import { useMemo, useState } from 'react';
-import { Halftone } from '../../app/Halftone';
+import { AnimatePresence, motion } from 'motion/react';
+import { memo, useMemo, type PointerEvent } from 'react';
+import { EASE_OUT } from '../../app/motion';
+import { EMPTY_LAYOUT, layoutFlow } from './flow/layout';
 import { GraphDrawing } from './GraphDrawing';
-import { GraphFocusCard, type GraphFocus } from './GraphFocusCard';
-import { GraphLegend } from './GraphLegend';
-import { findCardSide, isStillDrawn } from './graph-focus';
-import { layoutSchematic } from './schematic/layout';
+import { GraphFocusCard } from './GraphFocusCard';
+import { GraphHeader, GraphLegend } from './GraphChrome';
+import { isStillDrawn } from './graph-focus';
 import { useElementSize } from './use-element-size';
+import { useHoverFocus } from './use-hover-focus';
 import './graph.css';
 
-export function GraphView({ graph }: { graph: RetrievedGraph | null }) {
+interface GraphViewProps {
+  graph: RetrievedGraph | null;
+  isSearching: boolean;
+  isAnswering: boolean;
+}
+
+/** Memoised, because the page re-renders for every token of an answer and this has many parts. */
+export const GraphView = memo(function GraphView({
+  graph,
+  isSearching,
+  isAnswering,
+}: GraphViewProps) {
   const { ref, size } = useElementSize<HTMLDivElement>();
-  const [hovered, setHovered] = useState<GraphFocus | null>(null);
+  const { focus: hovered, enter, leave } = useHoverFocus();
   const layout = useMemo(
-    () => (graph && size.width > 0 ? layoutSchematic(graph, size) : null),
+    () => (graph && graph.nodes.length > 0 && size.width > 0 ? layoutFlow(graph, size) : null),
     [graph, size],
   );
-  const drawn = layout !== null && layout.nodes.length > 0 ? layout : null;
   // A graph that changes under a still pointer takes its hovered element away without a mouse leave.
-  const focus = drawn && hovered && isStillDrawn(hovered, drawn) ? hovered : null;
+  const focus = layout && hovered && isStillDrawn(hovered, layout) ? hovered : null;
+  const showsInvitation = layout === null && !isSearching;
 
   return (
-    <div className="graph">
-      <div ref={ref} className="graph-canvas">
-        {drawn ? (
-          // The key restarts the drawing animation when another graph comes in.
-          <GraphDrawing
-            key={drawn.nodes.map((node) => node.name).join('\n')}
-            layout={drawn}
-            focus={focus}
-            onFocus={setHovered}
-          />
-        ) : (
-          <div className="graph-empty">
-            <Halftone diameter={260} />
-            <p>The path behind an answer prints here.</p>
-          </div>
-        )}
+    <section className={isSearching ? 'graph is-searching' : 'graph'}>
+      <GraphHeader layout={layout} isSearching={isSearching} />
+      <div ref={ref} className="graph-canvas" onPointerMove={followPointer}>
+        <div className="graph-dots" />
+        <div className="graph-dots is-lit" />
+        <GraphDrawing
+          layout={layout ?? EMPTY_LAYOUT}
+          focus={focus}
+          isAnswering={isAnswering}
+          onFocus={enter}
+          onBlur={leave}
+        />
+        <AnimatePresence>
+          {showsInvitation && (
+            <motion.p
+              key="invitation"
+              className="graph-invitation"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4, ease: EASE_OUT }}
+            >
+              The graph behind an answer appears here.
+            </motion.p>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {layout && focus && (
+            <GraphFocusCard key="card" focus={focus} layout={layout} panel={size} />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>{layout && <GraphLegend key="legend" />}</AnimatePresence>
       </div>
-      {drawn && <GraphLegend />}
-      {drawn && focus && <GraphFocusCard focus={focus} side={findCardSide(focus, drawn.width)} />}
-    </div>
+    </section>
   );
+});
+
+/** Written straight to the element, because a re-render per pointer move would be wasteful. */
+function followPointer(event: PointerEvent<HTMLDivElement>): void {
+  const element = event.currentTarget;
+  const box = element.getBoundingClientRect();
+  element.style.setProperty('--spot-x', `${event.clientX - box.left}px`);
+  element.style.setProperty('--spot-y', `${event.clientY - box.top}px`);
 }

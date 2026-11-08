@@ -2,7 +2,7 @@
 
 Ask questions about your documents and see the part of the knowledge graph behind each answer.
 
-Documents (PDF with a text layer, TXT, MD) become a knowledge graph through an LLM. A question goes through history with summarisation, a router that decides whether retrieval is needed, reformulation, graph retrieval, and a streamed answer with its sources. The UI draws the retrieved subgraph next to the chat as a transit map, with stop size and line width taken from the retrieval weights.
+Documents (PDF with a text layer, TXT, MD) become a knowledge graph through an LLM. A question goes through history with summarisation, a router that decides whether retrieval is needed, reformulation, graph retrieval, and a streamed answer with its sources. The UI draws the retrieved subgraph next to the chat as a flow from the seed outwards, a hop per column, with emphasis and line width taken from the retrieval weights.
 
 ## Run it
 

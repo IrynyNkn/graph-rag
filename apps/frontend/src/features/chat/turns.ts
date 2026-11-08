@@ -26,6 +26,31 @@ export function hasGraph(message: Message): boolean {
   return (message.metadata?.graph?.nodes.length ?? 0) > 0;
 }
 
+export function isChatEmpty(messages: Message[], turn: TurnState, isLoading: boolean): boolean {
+  return !isLoading && messages.length === 0 && turn.question === null;
+}
+
+export type LivePlace = 'none' | 'new-turn' | 'last-turn';
+
+/**
+ * Where the streaming answer goes. A reload can bring in its saved question before the answer is
+ * done, and then the two share a turn. The same question can also be asked twice, and then only
+ * the text says whether the last saved answer is this one.
+ */
+export function findLivePlace(turns: ConversationTurn[], turn: TurnState): LivePlace {
+  if (turn.question === null) {
+    return 'none';
+  }
+  const last = turns.at(-1);
+  if (last?.question?.content !== turn.question) {
+    return 'new-turn';
+  }
+  if (last.answer === null) {
+    return 'last-turn';
+  }
+  return last.answer.content.trim() === turn.text.trim() ? 'none' : 'new-turn';
+}
+
 /** The answer whose graph is on screen: the chosen one, or else the latest with a graph. */
 export function findActiveAnswer(
   messages: Message[],
