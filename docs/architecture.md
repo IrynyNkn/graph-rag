@@ -59,7 +59,7 @@ An error in a job marks the document `failed` and the message is acked; the user
 `TurnService` is an async generator of events (analysis, graph, citations, token, done, error) that the controller writes to SSE, which keeps it testable without HTTP.
 
 1. Save the user message and load the history. Over `HISTORY_MAX_TOKENS`, the oldest messages fold into a summary.
-2. A router returns the route (`knowledge_base` or `conversation`) and a standalone question. With no history it skips the LLM. Invalid output falls back to the knowledge base and the question as it is.
+2. A router returns the route (`knowledge_base` or `conversation`) and a short standalone question, which names what the message refers to and adds nothing else from the history. It is shown above the answer when it differs from what was asked. With no history it skips the LLM. Invalid output falls back to the knowledge base and the question as it is.
 3. The strategy for the route answers. For the knowledge base: retrieve with QASA, emit the graph, build the context within the budget, dropping the lowest weights first, emit the sources and stream the answer.
 4. Save the answer with its snapshot. When the client disconnects, the generator stops at its next step and the partial answer is not saved.
 

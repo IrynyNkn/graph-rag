@@ -2,9 +2,10 @@ import type { Message } from '@graph-rag/contracts';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EASE_OUT } from '../../app/motion';
+import { AnalysisNote } from './AnalysisNote';
 import { AnswerText } from './AnswerText';
 import { Sources } from './Sources';
-import type { TurnState } from './turn-state';
+import { isSearching, type TurnState } from './turn-state';
 import { Question, TurnEntry, type TurnActions } from './TurnEntry';
 import { findActiveAnswer, findLivePlace, groupIntoTurns } from './turns';
 import './MessageList.css';
@@ -104,11 +105,12 @@ function Invitation() {
 function LiveAnswer({ turn }: { turn: TurnState }) {
   return (
     <div className="turn-answer">
+      <AnalysisNote question={turn.question} analysis={turn.analysis} isLive />
       {turn.text ? (
         <AnswerText text={turn.text} isLive />
       ) : (
         <span className="shimmer">
-          {turn.graph === null ? 'Looking through the graph' : 'Writing the answer'}
+          {isSearching(turn) ? 'Looking through the graph' : 'Writing the answer'}
         </span>
       )}
       <Sources citations={turn.citations} />

@@ -1,7 +1,7 @@
 import type { Citation, Message, RetrievedGraph } from '@graph-rag/contracts';
 import { describe, expect, it } from 'vitest';
 import { splitAnswer } from './answer-parts';
-import { applyTurnEvent, finishTurn, IDLE_TURN, startTurn } from './turn-state';
+import { applyTurnEvent, finishTurn, IDLE_TURN, isSearching, startTurn } from './turn-state';
 import {
   describeLoss,
   dropMessagesFrom,
@@ -9,6 +9,7 @@ import {
   findLivePlace,
   groupIntoTurns,
   isChatEmpty,
+  isSameQuestion,
   selectGraph,
 } from './turns';
 
@@ -38,6 +39,16 @@ const question = (id: number): Message => ({
   content: 'Question',
   createdAt: '2026-01-01T00:00:00.000Z',
   metadata: null,
+});
+
+describe('isSameQuestion', () => {
+  it('ignores case and punctuation', () => {
+    expect(isSameQuestion('who manages the team', 'Who manages the team?')).toBe(true);
+  });
+
+  it('notices another word', () => {
+    expect(isSameQuestion('Who manages it?', 'Who manages the team?')).toBe(false);
+  });
 });
 
 describe('turn state', () => {
@@ -71,13 +82,32 @@ describe('turn state', () => {
     });
   });
 
-  it('ignores events that change nothing on screen', () => {
+  it('records how the question was understood', () => {
+    const state = applyTurnEvent(startTurn('id', 'Q'), {
+      type: 'analysis',
+      route: 'conversation',
+      standaloneQuestion: 'S',
+    });
+
+    expect(state.analysis).toEqual({ route: 'conversation', standaloneQuestion: 'S' });
+  });
+
+  it('ignores the end of a turn, which the saved messages show', () => {
     const state = startTurn('id', 'Q');
 
-    expect(
-      applyTurnEvent(state, { type: 'analysis', route: 'conversation', standaloneQuestion: 'Q' }),
-    ).toBe(state);
     expect(applyTurnEvent(state, { type: 'done', message: answer(1, null) })).toBe(state);
+  });
+
+  it('is searching until the graph arrives, unless the conversation will answer', () => {
+    const started = startTurn('id', 'Q');
+    const route = (value: 'knowledge_base' | 'conversation') =>
+      applyTurnEvent(started, { type: 'analysis', route: value, standaloneQuestion: 'Q' });
+
+    expect(isSearching(IDLE_TURN)).toBe(false);
+    expect(isSearching(started)).toBe(true);
+    expect(isSearching(route('knowledge_base'))).toBe(true);
+    expect(isSearching(route('conversation'))).toBe(false);
+    expect(isSearching({ ...started, graph: graphOf('a') })).toBe(false);
   });
 
   it('keeps only the error when it finishes', () => {

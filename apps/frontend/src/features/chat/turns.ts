@@ -1,6 +1,8 @@
 import type { ConversationDetails, Message, RetrievedGraph } from '@graph-rag/contracts';
 import type { TurnState } from './turn-state';
 
+const WORD_BREAKS = /[^\p{L}\p{N}]+/gu;
+
 export interface ConversationTurn {
   question: Message | null;
   answer: Message | null;
@@ -77,13 +79,19 @@ export function findActiveAnswer(
   return selected && hasGraph(selected) ? selected : (messages.findLast(hasGraph) ?? null);
 }
 
+/** The router repeats a clear question as it is, give or take its case and punctuation. */
+export function isSameQuestion(asked: string, understood: string): boolean {
+  const plain = (text: string) => text.toLowerCase().replace(WORD_BREAKS, ' ').trim();
+  return plain(asked) === plain(understood);
+}
+
 /** The graph being retrieved right now wins over any saved answer. */
 export function selectGraph(
   turn: TurnState,
   messages: Message[],
   selectedMessageId: number | null,
 ): RetrievedGraph | null {
-  if (turn.isStreaming) {
+  if (turn.isStreaming && turn.analysis?.route !== 'conversation') {
     return turn.graph;
   }
   return findActiveAnswer(messages, selectedMessageId)?.metadata?.graph ?? null;

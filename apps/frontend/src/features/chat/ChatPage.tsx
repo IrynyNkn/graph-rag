@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { GraphView } from '../graph/GraphView';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
-import { IDLE_TURN } from './turn-state';
+import { IDLE_TURN, isSearching } from './turn-state';
 import type { TurnActions } from './TurnEntry';
 import { isChatEmpty, selectGraph } from './turns';
 import { useConversation, useConversations, useRewind } from './use-conversations';
@@ -77,7 +77,7 @@ export function ChatPage() {
       </section>
       <GraphView
         graph={graph}
-        isSearching={turn.isStreaming && turn.graph === null}
+        isSearching={isSearching(turn)}
         isAnswering={turn.isStreaming && turn.graph !== null}
       />
     </div>

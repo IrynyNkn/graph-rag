@@ -181,6 +181,7 @@ describe('ChatPage', () => {
     expect(screen.getByTestId('graph').textContent).toBe('alice');
     expect(screen.queryByText('Alice manages the team.')).toBeNull();
     expect(screen.queryByText('Stopped')).toBeNull();
+    expect(screen.queryByText(/Searched for/)).toBeNull();
 
     fireEvent.click(screen.getByText('Sources (1)'));
     expect(screen.getByText('Alice manages the team.')).toBeTruthy();
@@ -460,6 +461,75 @@ describe('ChatPage', () => {
         expect(screen.queryByRole('button', { name: 'Edit the question' })).toBeNull(),
       );
       expect(screen.queryByRole('button', { name: /Ask again/ })).toBeNull();
+    });
+  });
+
+  describe('how a question was understood', () => {
+    const followUp = (route: 'knowledge_base' | 'conversation'): ConversationDetails => ({
+      ...answered,
+      messages: [
+        { id: 1, role: 'user', content: 'And who leads it?', metadata: null, createdAt: TIMESTAMP },
+        {
+          ...(answered.messages[1] as Message),
+          metadata: {
+            ...(answered.messages[1]?.metadata as MessageMetadata),
+            route,
+            standaloneQuestion: 'Who leads the Search Team?',
+          },
+        },
+      ],
+    });
+
+    it('says what a follow-up was searched for', async () => {
+      details = followUp('knowledge_base');
+      renderPage(`/chat/${ID}`);
+
+      expect(
+        (await screen.findByText('Who leads the Search Team?')).parentElement?.textContent,
+      ).toBe('Searched for Who leads the Search Team?');
+    });
+
+    it('says when the conversation was enough', async () => {
+      details = followUp('conversation');
+      renderPage(`/chat/${ID}`);
+
+      expect(await screen.findByText('Answered from the conversation')).toBeTruthy();
+      expect(screen.queryByText(/Searched for/)).toBeNull();
+    });
+
+    async function askAndHold() {
+      const stream = holdTurn();
+      renderPage(`/chat/${ID}`);
+      fireEvent.change(await screen.findByPlaceholderText(/Ask about/), {
+        target: { value: 'And who leads it?' },
+      });
+      fireEvent.click(sendButton());
+      await screen.findByText('Looking through the graph');
+      return stream;
+    }
+
+    it('shows what is being searched for as soon as it is known', async () => {
+      const stream = await askAndHold();
+
+      stream.write([
+        { type: 'analysis', route: 'knowledge_base', standaloneQuestion: 'Who leads the team?' },
+      ]);
+
+      expect(await screen.findByText('Who leads the team?')).toBeTruthy();
+      expect(screen.getByText('Looking through the graph')).toBeTruthy();
+      expect(screen.getByTestId('graph').dataset.searching).toBe('true');
+    });
+
+    it('stops looking through the graph once the conversation will answer', async () => {
+      details = answered;
+      const stream = await askAndHold();
+      expect(screen.getByTestId('graph').textContent).toBe('no graph');
+
+      stream.write([{ type: 'analysis', route: 'conversation', standaloneQuestion: 'Thanks' }]);
+
+      expect(await screen.findByText('Writing the answer')).toBeTruthy();
+      expect(screen.getByTestId('graph').dataset.searching).toBe('false');
+      expect(screen.getByTestId('graph').textContent).toBe('alice');
     });
   });
 

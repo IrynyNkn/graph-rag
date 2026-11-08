@@ -3,6 +3,7 @@ import { memo, type ReactNode } from 'react';
 import { ConfirmButton } from '../../app/ConfirmButton';
 import { AgainIcon, PencilIcon, TrashIcon } from '../../app/icons';
 import { SNAPPY } from '../../app/motion';
+import { AnalysisNote } from './AnalysisNote';
 import { AnswerText } from './AnswerText';
 import { QuestionEditor } from './QuestionEditor';
 import { Sources } from './Sources';
@@ -113,6 +114,7 @@ function AnswerPart({ turn, isLast, isEditing, live, actions }: TurnEntryProps) 
   );
   return (
     <div className="turn-answer">
+      <AnalysisNote question={question?.content ?? null} analysis={answer.metadata} />
       <AnswerText text={answer.content} />
       <Sources
         citations={answer.metadata?.citations ?? []}
