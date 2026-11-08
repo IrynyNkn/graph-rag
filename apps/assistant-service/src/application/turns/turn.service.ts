@@ -6,6 +6,8 @@ import type {
 } from '@graph-rag/contracts';
 import { errorMessage } from '@graph-rag/nest-common';
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { AppConfig } from '../../config.js';
+import type { ConversationHistory } from '../conversations/conversation-history.js';
 import { ConversationsService } from '../conversations/conversations.service.js';
 import { HistoryLoader } from '../conversations/history-loader.js';
 import { QueryAnalyzer, type QueryAnalysis } from '../query/analysis/query-analyzer.js';
@@ -14,6 +16,7 @@ import {
   type AnswerStrategy,
   type AnswerEvent,
 } from '../query/answering/answer-strategy.js';
+import { TurnStopwatch } from './turn-stopwatch.js';
 
 @Injectable()
 export class TurnService {
@@ -26,6 +29,7 @@ export class TurnService {
     private readonly history: HistoryLoader,
     private readonly analyzer: QueryAnalyzer,
     @Inject(ANSWER_STRATEGIES) private readonly strategies: AnswerStrategy[],
+    private readonly config: AppConfig,
   ) {}
 
   /**
@@ -71,13 +75,33 @@ export class TurnService {
     question: string,
     stopped: AbortSignal,
   ): AsyncGenerator<TurnEvent> {
+    const stopwatch = new TurnStopwatch();
     const userMessage = await this.conversations.appendUserMessage(conversationId, question);
     const history = await this.history.load(conversationId, userMessage.id);
     const analysis = await this.analyzer.analyze(question, history);
+    stopwatch.observe('analysis');
     yield { type: 'analysis', ...analysis };
 
+    const { content, metadata } = yield* this.write(analysis, history, stopwatch, stopped);
+    if (stopped.aborted && content.length === 0) {
+      return;
+    }
+    const message = await this.conversations.appendAssistantMessage(conversationId, content, {
+      ...metadata,
+      timings: stopwatch.read(),
+      stopped: stopped.aborted,
+    });
+    yield { type: 'done', message };
+  }
+
+  private async *write(
+    analysis: QueryAnalysis,
+    history: ConversationHistory,
+    stopwatch: TurnStopwatch,
+    stopped: AbortSignal,
+  ): AsyncGenerator<AnswerEvent, { content: string; metadata: MessageMetadata }> {
     let content = '';
-    const metadata = initialMetadata(analysis);
+    const metadata = this.initialMetadata(analysis);
     const answer = this.strategyFor(analysis.route).answer({
       question: analysis.standaloneQuestion,
       history,
@@ -87,19 +111,23 @@ export class TurnService {
       if (stopped.aborted) {
         break;
       }
+      stopwatch.observe(event.type);
       content += event.type === 'token' ? event.text : '';
       recordInMetadata(metadata, event);
       yield event;
     }
-    if (stopped.aborted && content.length === 0) {
-      return;
-    }
-    const message = await this.conversations.appendAssistantMessage(
-      conversationId,
-      content,
-      stopped.aborted ? { ...metadata, stopped: true } : metadata,
-    );
-    yield { type: 'done', message };
+    return { content, metadata };
+  }
+
+  private initialMetadata({ route, standaloneQuestion }: QueryAnalysis): MessageMetadata {
+    const { chat, embedding } = this.config.inference;
+    return {
+      route,
+      standaloneQuestion,
+      graph: null,
+      citations: [],
+      models: { chat: chat.model, embedding: embedding.model },
+    };
   }
 
   private strategyFor(route: QueryRoute): AnswerStrategy {
@@ -109,10 +137,6 @@ export class TurnService {
     }
     return strategy;
   }
-}
-
-function initialMetadata({ route, standaloneQuestion }: QueryAnalysis): MessageMetadata {
-  return { route, standaloneQuestion, graph: null, citations: [] };
 }
 
 /** The snapshot keeps an old answer and its graph readable after a document is deleted. */

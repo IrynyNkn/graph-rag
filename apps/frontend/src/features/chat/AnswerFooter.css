@@ -1,0 +1,49 @@
+.answer-footer {
+  margin-top: 10px;
+  white-space: normal;
+}
+
+.answer-footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-left: -6px;
+}
+
+.panel-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 26px;
+  padding: 0 8px 0 4px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 450;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+
+.panel-toggle:hover {
+  color: var(--text);
+  background: var(--line);
+}
+
+.panel-toggle .icon {
+  width: 13px;
+  height: 13px;
+  transition: transform 0.22s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.panel-toggle[aria-expanded='true'] .icon {
+  transform: rotate(90deg);
+}
+
+.answer-footer-panel {
+  overflow: hidden;
+  scroll-margin-bottom: 28px;
+}

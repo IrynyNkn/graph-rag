@@ -197,6 +197,8 @@ describe('conversations API', () => {
     const metadata = details.messages[1]?.metadata;
     expect(metadata?.graph?.nodes.map((node) => node.name).toSorted()).toEqual(['alice', 'team']);
     expect(metadata?.citations[0]?.text).toBe('Alice manages the team.');
+    expect(metadata?.timings?.searchMs).toEqual(expect.any(Number));
+    expect(metadata?.models?.chat).toEqual(expect.any(String));
   });
 
   it('reformulates a follow-up and can answer without retrieval', async () => {

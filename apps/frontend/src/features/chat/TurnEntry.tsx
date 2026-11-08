@@ -4,9 +4,9 @@ import { ConfirmButton } from '../../app/ConfirmButton';
 import { AgainIcon, PencilIcon, TrashIcon } from '../../app/icons';
 import { SNAPPY } from '../../app/motion';
 import { AnalysisNote } from './AnalysisNote';
+import { AnswerFooter } from './AnswerFooter';
 import { AnswerText } from './AnswerText';
 import { QuestionEditor } from './QuestionEditor';
-import { Sources } from './Sources';
 import { describeLoss, hasGraph, type ConversationTurn } from './turns';
 import './TurnEntry.css';
 
@@ -116,8 +116,9 @@ function AnswerPart({ turn, isLast, isEditing, live, actions }: TurnEntryProps) 
     <div className="turn-answer">
       <AnalysisNote question={question?.content ?? null} analysis={answer.metadata} />
       <AnswerText text={answer.content} />
-      <Sources
+      <AnswerFooter
         citations={answer.metadata?.citations ?? []}
+        details={answer.metadata}
         tools={
           (stopped || askAgain) && (
             <>

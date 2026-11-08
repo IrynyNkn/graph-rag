@@ -191,6 +191,35 @@ describe('ChatPage', () => {
     await waitFor(() => expect(screen.queryByText('Alice manages the team.')).toBeNull());
   });
 
+  it('shows how long an answer took and what wrote it, one panel at a time', async () => {
+    details = {
+      ...answered,
+      messages: [
+        answered.messages[0] as Message,
+        {
+          ...(answered.messages[1] as Message),
+          metadata: {
+            ...(answered.messages[1]?.metadata as MessageMetadata),
+            timings: { analysisMs: 900, searchMs: 400, waitMs: 1100, writingMs: 1800 },
+            models: { chat: 'small-chat', embedding: 'small-embedding' },
+          },
+        },
+      ],
+    };
+    renderPage(`/chat/${ID}`);
+
+    vi.mocked(Element.prototype.scrollIntoView).mockClear();
+    fireEvent.click(await screen.findByText('Took 4.2 s'));
+    expect(screen.getByText('Searching the graph').nextSibling?.textContent).toBe('400 ms');
+    expect(screen.getByText('small-chat')).toBeTruthy();
+    expect(screen.getByText('small-embedding')).toBeTruthy();
+    await waitFor(() => expect(Element.prototype.scrollIntoView).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByText('Sources (1)'));
+    expect(screen.getByText('Alice manages the team.')).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText('Searching the graph')).toBeNull());
+  });
+
   it('shows a bolded word in an answer as bold, without its asterisks', async () => {
     details = {
       ...answered,

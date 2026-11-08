@@ -59,6 +59,7 @@ describe('TurnService', () => {
       new HistoryLoader(repository, chat, config),
       new QueryAnalyzer(chat, config),
       strategies,
+      config,
     );
   }
 
@@ -115,6 +116,19 @@ describe('TurnService', () => {
           standaloneQuestion: 'Who is Alice?',
           graph,
           citations: [citation],
+        },
+      },
+    });
+  });
+
+  it('saves how long the stages took and which models wrote the answer', async () => {
+    const events = await collect(await createService().start(id, { content: 'Who is Alice?' }));
+
+    expect(events.at(-1)).toMatchObject({
+      message: {
+        metadata: {
+          timings: { analysisMs: expect.any(Number), searchMs: expect.any(Number) },
+          models: { chat: 'fake-chat', embedding: 'fake-embedding' },
         },
       },
     });
@@ -249,7 +263,7 @@ describe('TurnService', () => {
 
       expect(events.at(-1)).toMatchObject({ message: { content: 'From documents.' } });
       const { messages } = await new ConversationsService(repository).getDetails(id);
-      expect(messages[1]?.metadata?.stopped).toBeUndefined();
+      expect(messages[1]?.metadata?.stopped).toBe(false);
     });
 
     it('ignores a stop when nothing is running', () => {

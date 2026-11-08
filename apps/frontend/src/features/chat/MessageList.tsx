@@ -3,8 +3,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EASE_OUT } from '../../app/motion';
 import { AnalysisNote } from './AnalysisNote';
+import { AnswerFooter } from './AnswerFooter';
 import { AnswerText } from './AnswerText';
-import { Sources } from './Sources';
 import { isSearching, type TurnState } from './turn-state';
 import { Question, TurnEntry, type TurnActions } from './TurnEntry';
 import { findActiveAnswer, findLivePlace, groupIntoTurns } from './turns';
@@ -113,7 +113,7 @@ function LiveAnswer({ turn }: { turn: TurnState }) {
           {isSearching(turn) ? 'Looking through the graph' : 'Writing the answer'}
         </span>
       )}
-      <Sources citations={turn.citations} />
+      <AnswerFooter citations={turn.citations} />
     </div>
   );
 }

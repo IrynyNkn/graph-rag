@@ -7,6 +7,18 @@ export type QueryRoute = z.infer<typeof queryRouteSchema>;
 export const messageRoleSchema = z.enum(['user', 'assistant']);
 export type MessageRole = z.infer<typeof messageRoleSchema>;
 
+export const turnTimingsSchema = z.object({
+  analysisMs: z.number().nonnegative(),
+  /** Null when the conversation answered, without looking through the graph. */
+  searchMs: z.number().nonnegative().nullable(),
+  waitMs: z.number().nonnegative(),
+  writingMs: z.number().nonnegative(),
+});
+export type TurnTimings = z.infer<typeof turnTimingsSchema>;
+
+export const turnModelsSchema = z.object({ chat: z.string(), embedding: z.string() });
+export type TurnModels = z.infer<typeof turnModelsSchema>;
+
 export const messageMetadataSchema = z.object({
   route: queryRouteSchema,
   standaloneQuestion: z.string(),
@@ -14,6 +26,9 @@ export const messageMetadataSchema = z.object({
   citations: z.array(citationSchema),
   /** The user stopped the answer, and this is what was written until then. */
   stopped: z.boolean().optional(),
+  /** How long each stage took and what wrote the answer, which older answers do not have. */
+  timings: turnTimingsSchema.optional(),
+  models: turnModelsSchema.optional(),
 });
 export type MessageMetadata = z.infer<typeof messageMetadataSchema>;
 
