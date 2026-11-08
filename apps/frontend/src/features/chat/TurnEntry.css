@@ -94,13 +94,7 @@
   color: light-dark(#37372f, #cfcfca);
   font-size: 15px;
   line-height: 1.62;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-.turn-answer strong {
-  color: var(--text);
-  font-weight: 600;
 }
 
 .turn.can-select:not(.is-active) .turn-answer {

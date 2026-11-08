@@ -69,6 +69,23 @@ export function AgainIcon() {
   );
 }
 
+export function CopyIcon() {
+  return (
+    <Icon>
+      <rect x="5.5" y="5.5" width="8" height="8" rx="1.75" />
+      <path d="M10.5 3.5v-.25A1.25 1.25 0 0 0 9.25 2h-5.5A1.25 1.25 0 0 0 2.5 3.25v5.5A1.25 1.25 0 0 0 3.5 10" />
+    </Icon>
+  );
+}
+
+export function CheckIcon() {
+  return (
+    <Icon>
+      <path d="m3.5 8.5 3 3 6-6.5" />
+    </Icon>
+  );
+}
+
 export function StopIcon() {
   return (
     <svg className="icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">

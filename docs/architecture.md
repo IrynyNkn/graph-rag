@@ -92,6 +92,8 @@ The graph is a deterministic flow in `features/graph/flow/`, because a force lay
 
 Every relation keeps the chunks it was extracted from, so pointing at a source under an answer lights the relations it gave, and the card of a relation quotes the sentence behind it. Only chunks that made it into the answer have their text at hand, so a relation from another chunk has no quote. Clicking a node starts a question about it in the composer, or adds its name to the one being written, and never sends anything by itself.
 
+Answers are Markdown. Images in them are dropped, so that nothing a document says can make the app fetch anything. While an answer streams, a rehype plugin gives each word its own element, and a word keeps its position as text arrives, so only new words run their entrance. A half-written pair of asterisks is closed early, so that its words are bold from the start.
+
 Motion follows events and stops when nothing happens, which also saves the battery. The graph unfolds a hop at a time, and when another graph replaces it, what the two share travels to its new place, because edges and chips keep their identity. That needs every line to have the same path commands. The graph and older turns are memoised, because the page re-renders for every token.
 
 ## What real models taught

@@ -241,6 +241,44 @@ describe('ChatPage', () => {
     await waitFor(() => expect(screen.queryByText('Searching the graph')).toBeNull());
   });
 
+  describe('copying an answer', () => {
+    function stubClipboard(writeText: (text: string) => Promise<void>) {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    }
+
+    afterEach(() => {
+      Reflect.deleteProperty(navigator, 'clipboard');
+    });
+
+    it('copies the text as it was written, and says so', async () => {
+      const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue();
+      stubClipboard(writeText);
+      details = {
+        ...answered,
+        messages: [
+          answered.messages[0] as Message,
+          { ...(answered.messages[1] as Message), content: 'It is **Alice**.' },
+        ],
+      };
+      renderPage(`/chat/${ID}`);
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
+
+      expect(await screen.findByRole('button', { name: 'Copied' })).toBeTruthy();
+      expect(writeText).toHaveBeenCalledWith('It is **Alice**.');
+    });
+
+    it('says when the browser refused', async () => {
+      stubClipboard(vi.fn<(text: string) => Promise<void>>().mockRejectedValue(new Error('No')));
+      details = answered;
+      renderPage(`/chat/${ID}`);
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
+
+      expect(await screen.findByRole('button', { name: 'Could not copy' })).toBeTruthy();
+    });
+  });
+
   it('starts a question about a node of the graph, and adds to one being written', async () => {
     renderPage(`/chat/${ID}`);
     const composer = await screen.findByPlaceholderText<HTMLTextAreaElement>(/Ask about/);

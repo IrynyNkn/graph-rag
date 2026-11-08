@@ -11,7 +11,7 @@ Path notation:
 Rules:
 - Use only the knowledge below. Never add anything from outside knowledge.
 - Follow the paths to connect facts across several steps.
-- Answer directly and concisely, in the language of the question, in plain text without Markdown.
+- Answer directly and concisely, in the language of the question. Use Markdown only where it helps: a list for several items, bold for the names that matter.
 - If the knowledge does not contain the answer, say that you could not find it in the documents. Do not guess.`;
 
 const NO_KNOWLEDGE_INSTRUCTIONS = `You are an assistant that answers questions from the user's documents, but nothing relevant to this message was found in them.

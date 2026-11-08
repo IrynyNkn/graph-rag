@@ -1,6 +1,5 @@
 import type { Citation, Message, RetrievedGraph } from '@graph-rag/contracts';
 import { describe, expect, it } from 'vitest';
-import { splitAnswer } from './answer-parts';
 import { applyTurnEvent, finishTurn, IDLE_TURN, isSearching, startTurn } from './turn-state';
 import {
   describeLoss,
@@ -243,24 +242,6 @@ describe('describeLoss', () => {
     expect(describeLoss(0, true)).toBe('This replaces its answer.');
     expect(describeLoss(1, true)).toBe('This replaces its answer and the question after it.');
     expect(describeLoss(3, true)).toBe('This replaces its answer and the 3 questions after it.');
-  });
-});
-
-describe('splitAnswer', () => {
-  it('marks what a model has bolded', () => {
-    expect(splitAnswer('It is **Alice** who')).toEqual([
-      { text: 'It is ', isBold: false },
-      { text: 'Alice', isBold: true },
-      { text: ' who', isBold: false },
-    ]);
-  });
-
-  it('drops the asterisks of a pair that is only half there', () => {
-    expect(splitAnswer('It is **Ali')).toEqual([{ text: 'It is Ali', isBold: false }]);
-  });
-
-  it('has no parts for no text', () => {
-    expect(splitAnswer('')).toEqual([]);
   });
 });
 

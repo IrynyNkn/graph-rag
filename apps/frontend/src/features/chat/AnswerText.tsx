@@ -1,5 +1,14 @@
-import { splitAnswer } from './answer-parts';
+import type { ComponentProps } from 'react';
+import Markdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { closeOpenMarkers, rehypeLiveAnswer } from './answer-markdown';
 import './AnswerText.css';
+
+const REMARK_PLUGINS = [remarkGfm];
+const LIVE_REHYPE_PLUGINS = [rehypeLiveAnswer];
+// The text can come from any document, and the app must not fetch anything because of it.
+const DISALLOWED_ELEMENTS = ['img'];
+const COMPONENTS: Components = { a: AnswerLink };
 
 interface AnswerTextProps {
   text: string;
@@ -7,29 +16,26 @@ interface AnswerTextProps {
 }
 
 export function AnswerText({ text, isLive = false }: AnswerTextProps) {
-  const parts = splitAnswer(text);
-  if (!isLive) {
-    return parts.map((part, index) =>
-      part.isBold ? <strong key={index}>{part.text}</strong> : part.text,
-    );
-  }
   return (
-    <>
-      <LiveWords text={parts.map((part) => part.text).join('')} />
-      <span className="answer-caret" aria-hidden="true" />
-    </>
+    <div className="answer-text">
+      <Markdown
+        remarkPlugins={REMARK_PLUGINS}
+        rehypePlugins={isLive ? LIVE_REHYPE_PLUGINS : undefined}
+        disallowedElements={DISALLOWED_ELEMENTS}
+        unwrapDisallowed
+        components={COMPONENTS}
+      >
+        {isLive ? closeOpenMarkers(text) : text}
+      </Markdown>
+    </div>
   );
 }
 
-/** A word keeps its index as more text arrives, so that only the new ones run their entrance. */
-function LiveWords({ text }: { text: string }) {
-  return text.split(/(\s+)/).map((word, index) =>
-    index % 2 === 1 ? (
-      word
-    ) : (
-      <span key={index} className="word">
-        {word}
-      </span>
-    ),
+/** A link in an answer must not take the user away from the conversation. */
+function AnswerLink({ node: _node, children, ...props }: ComponentProps<'a'> & { node?: unknown }) {
+  return (
+    <a {...props} target="_blank" rel="noreferrer">
+      {children}
+    </a>
   );
 }

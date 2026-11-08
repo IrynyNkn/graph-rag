@@ -6,6 +6,7 @@ import { SNAPPY } from '../../app/motion';
 import { AnalysisNote } from './AnalysisNote';
 import { AnswerFooter } from './AnswerFooter';
 import { AnswerText } from './AnswerText';
+import { CopyButton } from './CopyButton';
 import { QuestionEditor } from './QuestionEditor';
 import { describeLoss, hasGraph, type ConversationTurn } from './turns';
 import './TurnEntry.css';
@@ -122,12 +123,11 @@ function AnswerPart({ turn, isLast, isEditing, live, actions, onSourceHover }: T
         details={answer.metadata}
         onSourceHover={onSourceHover}
         tools={
-          (stopped || askAgain) && (
-            <>
-              {stopped}
-              {askAgain}
-            </>
-          )
+          <>
+            {stopped}
+            {askAgain}
+            <CopyButton text={answer.content} />
+          </>
         }
       />
     </div>

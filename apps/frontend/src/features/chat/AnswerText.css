@@ -1,3 +1,119 @@
+.answer-text > :first-child {
+  margin-top: 0;
+}
+
+.answer-text > :last-child {
+  margin-bottom: 0;
+}
+
+.answer-text p,
+.answer-text ul,
+.answer-text ol,
+.answer-text pre,
+.answer-text table,
+.answer-text blockquote {
+  margin: 0.7em 0;
+}
+
+.answer-text h1,
+.answer-text h2,
+.answer-text h3,
+.answer-text h4,
+.answer-text h5,
+.answer-text h6 {
+  margin: 1em 0 0.35em;
+  color: var(--text);
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+
+.answer-text ul,
+.answer-text ol {
+  padding-left: 1.35em;
+}
+
+.answer-text ul {
+  list-style: disc;
+}
+
+.answer-text ol {
+  list-style: decimal;
+}
+
+.answer-text li {
+  margin-top: 0.25em;
+}
+
+.answer-text li::marker {
+  color: var(--text-3);
+}
+
+.answer-text li > p {
+  margin: 0;
+}
+
+.answer-text strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.answer-text a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 2px;
+}
+
+.answer-text blockquote {
+  padding-left: 11px;
+  border-left: 2px solid var(--line-strong);
+  color: var(--text-2);
+}
+
+.answer-text code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--line);
+  font-family: var(--mono);
+  font-size: 0.86em;
+}
+
+.answer-text pre {
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-radius: 10px;
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.answer-text pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
+
+.answer-text table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.answer-text th,
+.answer-text td {
+  padding: 4px 12px 4px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.answer-text th {
+  color: var(--text);
+  font-weight: 550;
+}
+
 .word {
   display: inline-block;
   animation: word-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
