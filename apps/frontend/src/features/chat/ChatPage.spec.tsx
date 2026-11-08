@@ -18,11 +18,13 @@ vi.mock('../graph/GraphView', () => ({
     isSearching,
     citations,
     sourceChunkId,
+    onAskAbout,
   }: {
     graph: RetrievedGraph | null;
     isSearching: boolean;
     citations: unknown[];
     sourceChunkId: string | null;
+    onAskAbout: (name: string) => void;
   }) => (
     <div
       data-testid="graph"
@@ -31,6 +33,9 @@ vi.mock('../graph/GraphView', () => ({
       data-source={sourceChunkId ?? ''}
     >
       {graph?.nodes.map((node) => node.name).join(',') ?? 'no graph'}
+      <button type="button" onClick={() => onAskAbout('Search Team')}>
+        Point at a node
+      </button>
     </div>
   ),
 }));
@@ -105,6 +110,7 @@ describe('ChatPage', () => {
   }
 
   const sendButton = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Ask' });
+  const graphNames = () => screen.getByTestId('graph').firstChild?.textContent;
 
   /** Keeps a turn running until the test finishes it, and lets it send events on the way. */
   function holdTurn() {
@@ -160,7 +166,7 @@ describe('ChatPage', () => {
     renderPage('/chat');
 
     expect(await screen.findByText(/What do your documents know/)).toBeTruthy();
-    expect(screen.getByTestId('graph').textContent).toBe('no graph');
+    expect(graphNames()).toBe('no graph');
   });
 
   it('does not flash the invitation while a saved conversation loads', async () => {
@@ -177,14 +183,14 @@ describe('ChatPage', () => {
     details = answered;
     let finishLoading = (_response: Response) => {};
     renderPage(`/chat/${ID}`);
-    await waitFor(() => expect(screen.getByTestId('graph').textContent).toBe('alice'));
+    await waitFor(() => expect(graphNames()).toBe('alice'));
     vi.mocked(fetch).mockImplementation(() => new Promise((resolve) => (finishLoading = resolve)));
 
     fireEvent.click(screen.getByText('Go to the other'));
 
-    expect(screen.getByTestId('graph').textContent).toBe('alice');
+    expect(graphNames()).toBe('alice');
     finishLoading(json({ ...conversation, id: OTHER_ID, messages: [] }));
-    await waitFor(() => expect(screen.getByTestId('graph').textContent).toBe('no graph'));
+    await waitFor(() => expect(graphNames()).toBe('no graph'));
   });
 
   it('shows saved messages, the graph of the latest answer, and sources on demand', async () => {
@@ -193,7 +199,7 @@ describe('ChatPage', () => {
     renderPage(`/chat/${ID}`);
 
     expect(await screen.findByText(/Alice does\./)).toBeTruthy();
-    expect(screen.getByTestId('graph').textContent).toBe('alice');
+    expect(graphNames()).toBe('alice');
     expect(screen.queryByText('Alice manages the team.')).toBeNull();
     expect(screen.queryByText('Stopped')).toBeNull();
     expect(screen.queryByText(/Searched for/)).toBeNull();
@@ -233,6 +239,25 @@ describe('ChatPage', () => {
     fireEvent.click(screen.getByText('Sources (1)'));
     expect(screen.getByText('Alice manages the team.')).toBeTruthy();
     await waitFor(() => expect(screen.queryByText('Searching the graph')).toBeNull());
+  });
+
+  it('starts a question about a node of the graph, and adds to one being written', async () => {
+    renderPage(`/chat/${ID}`);
+    const composer = await screen.findByPlaceholderText<HTMLTextAreaElement>(/Ask about/);
+
+    fireEvent.click(screen.getByText('Point at a node'));
+
+    expect(composer.value).toBe('Tell me about Search Team');
+    expect(document.activeElement).toBe(composer);
+    expect(fetch).not.toHaveBeenCalledWith(
+      `/api/assistant/conversations/${ID}/turns`,
+      expect.anything(),
+    );
+
+    fireEvent.change(composer, { target: { value: 'Compare it with ' } });
+    fireEvent.click(screen.getByText('Point at a node'));
+
+    expect(composer.value).toBe('Compare it with Search Team');
   });
 
   it('tells the graph its sources and which of them the pointer is on', async () => {
@@ -293,7 +318,7 @@ describe('ChatPage', () => {
     fireEvent.click(sendButton());
 
     expect(await screen.findByText(/Alice does\./)).toBeTruthy();
-    await waitFor(() => expect(screen.getByTestId('graph').textContent).toBe('alice'));
+    await waitFor(() => expect(graphNames()).toBe('alice'));
     await waitFor(() => expect(screen.getAllByText('Who manages?').length).toBeGreaterThan(0));
     await waitFor(() => expect(screen.queryByText(/What do your documents know/)).toBeNull());
   });
@@ -401,11 +426,11 @@ describe('ChatPage', () => {
       ],
     };
     renderPage(`/chat/${ID}`);
-    await waitFor(() => expect(screen.getByTestId('graph').textContent).toBe('alice'));
+    await waitFor(() => expect(graphNames()).toBe('alice'));
 
     fireEvent.click(screen.getByText(/Older answer\./));
 
-    expect(screen.getByTestId('graph').textContent).toBe('bob');
+    expect(graphNames()).toBe('bob');
     expect(screen.getByText('Older?').closest('.turn')?.classList).toContain('is-active');
   });
 
@@ -594,13 +619,13 @@ describe('ChatPage', () => {
     it('stops looking through the graph once the conversation will answer', async () => {
       details = answered;
       const stream = await askAndHold();
-      expect(screen.getByTestId('graph').textContent).toBe('no graph');
+      expect(graphNames()).toBe('no graph');
 
       stream.write([{ type: 'analysis', route: 'conversation', standaloneQuestion: 'Thanks' }]);
 
       expect(await screen.findByText('Writing the answer')).toBeTruthy();
       expect(screen.getByTestId('graph').dataset.searching).toBe('false');
-      expect(screen.getByTestId('graph').textContent).toBe('alice');
+      expect(graphNames()).toBe('alice');
     });
   });
 

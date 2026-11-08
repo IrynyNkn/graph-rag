@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import { EASE_OUT, SMOOTH } from '../../app/motion';
 import type { PlacedNode } from './flow/layout';
 import type { GraphFocus } from './graph-focus';
+import { toDisplayName } from './node-names';
 
 /** The graph unfolds a hop at a time, the way activation spread through it. */
 export const HOP_DELAY = 0.16;
@@ -15,6 +16,7 @@ interface GraphNodeChipProps {
   isDimmed: boolean;
   onFocus: (focus: GraphFocus) => void;
   onBlur: () => void;
+  onAskAbout: (name: string) => void;
 }
 
 export function GraphNodeChip({
@@ -24,6 +26,7 @@ export function GraphNodeChip({
   isDimmed,
   onFocus,
   onBlur,
+  onAskAbout,
 }: GraphNodeChipProps) {
   const classes = [
     'node',
@@ -52,6 +55,7 @@ export function GraphNodeChip({
       onMouseLeave={onBlur}
       onFocus={() => onFocus(focus)}
       onBlur={onBlur}
+      onClick={() => onAskAbout(toDisplayName(node.name))}
     >
       <i className="node-dot" aria-hidden="true" />
       <span className="node-name">

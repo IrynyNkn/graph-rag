@@ -220,7 +220,7 @@
   letter-spacing: -0.012em;
   text-align: left;
   white-space: nowrap;
-  cursor: default;
+  cursor: pointer;
   transition:
     color 0.18s,
     background 0.18s,
@@ -332,6 +332,12 @@
 .graph-card p {
   margin-top: 4px;
   color: var(--text-2);
+}
+
+.graph-card .graph-card-hint {
+  margin-top: 7px;
+  color: var(--text-3);
+  font-size: 12px;
 }
 
 .graph-card-quote {

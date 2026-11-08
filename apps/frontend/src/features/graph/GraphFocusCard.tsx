@@ -55,6 +55,7 @@ function NodeDetails({ node }: { node: PlacedNode }) {
         {node.type ?? 'entity'} / activation {node.activation.toFixed(2)}
       </p>
       {node.description && <p>{node.description}</p>}
+      <p className="graph-card-hint">Click to ask about it</p>
     </>
   );
 }

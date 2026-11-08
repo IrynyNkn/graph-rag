@@ -7,6 +7,7 @@ import { IDLE_TURN, isSearching } from './turn-state';
 import type { TurnActions } from './TurnEntry';
 import { isChatEmpty, selectCitations, selectGraph } from './turns';
 import { useConversation, useConversations, useRewind } from './use-conversations';
+import { useDraft } from './use-draft';
 import { useHeldGraph } from './use-held-graph';
 import { useTurn } from './use-turn';
 import './chat.css';
@@ -21,6 +22,7 @@ export function ChatPage() {
   const { turn: anyTurn, send, stop } = useTurn();
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [sourceChunkId, setSourceChunkId] = useState<string | null>(null);
+  const { draft, setDraft, field, addName } = useDraft();
 
   // A turn keeps running while the user looks at another conversation, but it belongs to its own.
   const turn = anyTurn.conversationId === conversationId ? anyTurn : IDLE_TURN;
@@ -73,6 +75,9 @@ export function ChatPage() {
           isLocked={anyTurn.isStreaming}
           isAnswering={turn.isStreaming}
           isStopping={turn.isStopping}
+          draft={draft}
+          fieldRef={field}
+          onDraftChange={setDraft}
           onSend={handleSend}
           onStop={stop}
         />
@@ -81,6 +86,7 @@ export function ChatPage() {
         graph={graph}
         citations={selectCitations(turn, messages, selectedMessageId)}
         sourceChunkId={sourceChunkId}
+        onAskAbout={addName}
         isSearching={isSearching(turn)}
         isAnswering={turn.isStreaming && turn.graph !== null}
       />

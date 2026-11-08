@@ -17,6 +17,7 @@ interface GraphDrawingProps {
   isAnswering: boolean;
   onFocus: (focus: GraphFocus) => void;
   onBlur: () => void;
+  onAskAbout: (name: string) => void;
 }
 
 export function GraphDrawing({
@@ -25,6 +26,7 @@ export function GraphDrawing({
   isAnswering,
   onFocus,
   onBlur,
+  onAskAbout,
 }: GraphDrawingProps) {
   const { width, height, scale, nodes, edges } = layout;
   const litNodes = highlight && findLitNodes(highlight, edges);
@@ -80,6 +82,7 @@ export function GraphDrawing({
                 isDimmed={litNodes !== null && !litNodes.has(node.name)}
                 onFocus={onFocus}
                 onBlur={onBlur}
+                onAskAbout={onAskAbout}
               />
             ))}
           </AnimatePresence>

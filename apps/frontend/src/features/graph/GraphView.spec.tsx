@@ -72,6 +72,7 @@ describe('GraphView', () => {
     isAnswering: false,
     citations: [],
     sourceChunkId: null,
+    onAskAbout: vi.fn<(name: string) => void>(),
   };
 
   function renderSized(value: RetrievedGraph | null, isSearching = false, isAnswering = false) {
@@ -142,6 +143,17 @@ describe('GraphView', () => {
     rerender(<GraphView {...idle} graph={graph} />);
 
     expect(container.querySelectorAll('.edge-pulse')).toHaveLength(0);
+  });
+
+  it('offers a node to ask about, by its readable name', () => {
+    const onAskAbout = vi.fn<(name: string) => void>();
+    renderWith({ onAskAbout });
+
+    fireEvent.mouseEnter(chip('Owen Blackwood'));
+    expect(screen.getByText('Click to ask about it')).toBeTruthy();
+    fireEvent.click(chip('Owen Blackwood'));
+
+    expect(onAskAbout).toHaveBeenCalledWith('Owen Blackwood');
   });
 
   it('lights the relations a source gave and dims the rest, without a card', () => {

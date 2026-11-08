@@ -19,6 +19,7 @@ interface GraphViewProps {
   sourceChunkId: string | null;
   isSearching: boolean;
   isAnswering: boolean;
+  onAskAbout: (name: string) => void;
 }
 
 /** Memoised, because the page re-renders for every token of an answer and this has many parts. */
@@ -28,6 +29,7 @@ export const GraphView = memo(function GraphView({
   sourceChunkId,
   isSearching,
   isAnswering,
+  onAskAbout,
 }: GraphViewProps) {
   const { ref, size } = useElementSize<HTMLDivElement>();
   const { focus: hovered, enter, leave } = useHoverFocus();
@@ -52,6 +54,7 @@ export const GraphView = memo(function GraphView({
           isAnswering={isAnswering}
           onFocus={enter}
           onBlur={leave}
+          onAskAbout={onAskAbout}
         />
         <AnimatePresence>
           {showsInvitation && (

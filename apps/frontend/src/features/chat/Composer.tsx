@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { useState, type FormEvent, type KeyboardEvent } from 'react';
+import type { FormEvent, KeyboardEvent, RefObject } from 'react';
 import { StopIcon } from '../../app/icons';
 import { SMOOTH } from '../../app/motion';
 import './Composer.css';
@@ -12,6 +12,9 @@ interface ComposerProps {
   /** An answer is being written in this conversation, which is the one this can stop. */
   isAnswering: boolean;
   isStopping: boolean;
+  draft: string;
+  fieldRef: RefObject<HTMLTextAreaElement | null>;
+  onDraftChange: (text: string) => void;
   onSend: (question: string) => void;
   onStop: () => void;
 }
@@ -21,17 +24,19 @@ export function Composer({
   isLocked,
   isAnswering,
   isStopping,
+  draft,
+  fieldRef,
+  onDraftChange,
   onSend,
   onStop,
 }: ComposerProps) {
-  const [text, setText] = useState('');
-  const question = text.trim();
+  const question = draft.trim();
   const canSend = !isLocked && question.length > 0;
 
   const submit = () => {
     if (canSend) {
       onSend(question);
-      setText('');
+      onDraftChange('');
     }
   };
 
@@ -59,10 +64,11 @@ export function Composer({
     >
       <div className="composer-box">
         <textarea
-          value={text}
+          ref={fieldRef}
+          value={draft}
           rows={2}
           placeholder="Ask about your documents"
-          onChange={(event) => setText(event.target.value)}
+          onChange={(event) => onDraftChange(event.target.value)}
           onKeyDown={handleKeyDown}
         />
         {isAnswering ? (
