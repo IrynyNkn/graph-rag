@@ -1,25 +1,37 @@
 import type { Citation } from '@graph-rag/contracts';
 import { AnimatePresence, motion } from 'motion/react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ChevronIcon } from '../../app/icons';
 import { SNAPPY } from '../../app/motion';
+import './Sources.css';
 
-export function Sources({ citations }: { citations: Citation[] }) {
+interface SourcesProps {
+  citations: Citation[];
+  /** Buttons for the answer, on the same row as the toggle. */
+  tools?: ReactNode;
+}
+
+export function Sources({ citations, tools }: SourcesProps) {
   const [isOpen, setIsOpen] = useState(false);
-  if (citations.length === 0) {
+  if (citations.length === 0 && !tools) {
     return null;
   }
   return (
     <div className="sources" onClick={(event) => event.stopPropagation()}>
-      <button
-        type="button"
-        className="sources-toggle"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <ChevronIcon />
-        Sources ({citations.length})
-      </button>
+      <div className="sources-row">
+        {citations.length > 0 && (
+          <button
+            type="button"
+            className="sources-toggle"
+            aria-expanded={isOpen}
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            <ChevronIcon />
+            Sources ({citations.length})
+          </button>
+        )}
+        {tools}
+      </div>
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div

@@ -1,4 +1,9 @@
-import type { MessageMetadata, QueryRoute, TurnEvent } from '@graph-rag/contracts';
+import type {
+  MessageMetadata,
+  QueryRoute,
+  SendMessageRequest,
+  TurnEvent,
+} from '@graph-rag/contracts';
 import { errorMessage } from '@graph-rag/nest-common';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConversationsService } from '../conversations/conversations.service.js';
@@ -21,10 +26,19 @@ export class TurnService {
     @Inject(ANSWER_STRATEGIES) private readonly strategies: AnswerStrategy[],
   ) {}
 
-  /** Checks the conversation first, so the caller can still answer with an HTTP status. */
-  async start(conversationId: string, question: string): Promise<AsyncGenerator<TurnEvent>> {
+  /**
+   * Checks the conversation first, and rewinds it for a question asked again, so the caller can
+   * still answer with an HTTP status.
+   */
+  async start(
+    conversationId: string,
+    { content, replacesFromMessageId }: SendMessageRequest,
+  ): Promise<AsyncGenerator<TurnEvent>> {
     await this.conversations.ensureExists(conversationId);
-    return this.run(conversationId, question);
+    if (replacesFromMessageId !== undefined) {
+      await this.conversations.rewind(conversationId, replacesFromMessageId);
+    }
+    return this.run(conversationId, content);
   }
 
   private async *run(conversationId: string, question: string): AsyncGenerator<TurnEvent> {

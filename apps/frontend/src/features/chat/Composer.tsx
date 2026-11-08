@@ -53,6 +53,7 @@ export function Composer({ isCentered, disabled, onSend }: ComposerProps) {
         <button
           type="submit"
           className={disabled ? 'composer-send is-busy' : 'composer-send'}
+          aria-label="Ask"
           disabled={!canSend}
         >
           Ask

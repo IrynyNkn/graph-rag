@@ -90,12 +90,32 @@ describe('streamTurn', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    const events = await collect(streamTurn('id', 'Question?', new AbortController().signal));
+    const events = await collect(
+      streamTurn('id', { content: 'Question?' }, new AbortController().signal),
+    );
 
     expect(events).toEqual([{ type: 'token', text: 'a' }]);
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/assistant/conversations/id/turns',
       expect.objectContaining({ method: 'POST', body: '{"content":"Question?"}' }),
+    );
+  });
+
+  it('says which question a turn asks again', async () => {
+    const fetchMock = vi.fn(async () => new Response(streamOf([])));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await collect(
+      streamTurn(
+        'id',
+        { content: 'Edited?', replacesFromMessageId: 3 },
+        new AbortController().signal,
+      ),
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/assistant/conversations/id/turns',
+      expect.objectContaining({ body: '{"content":"Edited?","replacesFromMessageId":3}' }),
     );
   });
 
@@ -108,7 +128,7 @@ describe('streamTurn', () => {
     );
 
     await expect(
-      collect(streamTurn('id', 'Question?', new AbortController().signal)),
+      collect(streamTurn('id', { content: 'Question?' }, new AbortController().signal)),
     ).rejects.toThrow(new ApiError('Conversation gone'));
   });
 
@@ -119,7 +139,7 @@ describe('streamTurn', () => {
     );
 
     await expect(
-      collect(streamTurn('id', 'Question?', new AbortController().signal)),
+      collect(streamTurn('id', { content: 'Question?' }, new AbortController().signal)),
     ).rejects.toThrow('status 502');
   });
 });

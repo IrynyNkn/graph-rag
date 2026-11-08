@@ -6,7 +6,7 @@ import type {
 } from '@graph-rag/contracts';
 import { Injectable } from '@nestjs/common';
 import { ConversationRepository } from './conversation.repository.js';
-import { ConversationNotFoundError } from './errors.js';
+import { ConversationNotFoundError, QuestionNotFoundError } from './errors.js';
 
 const TITLE_MAX_CHARS = 60;
 
@@ -34,6 +34,16 @@ export class ConversationsService {
     if (!(await this.conversations.delete(id))) {
       throw new ConversationNotFoundError(id);
     }
+  }
+
+  /** Deletes a question and everything after it, so that the conversation goes on from before it. */
+  async rewind(conversationId: string, questionId: number): Promise<void> {
+    await this.ensureExists(conversationId);
+    const question = await this.conversations.findMessage(conversationId, questionId);
+    if (question?.role !== 'user') {
+      throw new QuestionNotFoundError(conversationId, questionId);
+    }
+    await this.conversations.deleteMessagesFrom(conversationId, questionId);
   }
 
   async ensureExists(id: string): Promise<void> {

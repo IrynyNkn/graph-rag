@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
@@ -34,5 +35,15 @@ export class ConversationsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   delete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.conversations.delete(id);
+  }
+
+  /** Deletes a question and everything after it. */
+  @Delete(':id/messages/:messageId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  rewind(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('messageId', ParseIntPipe) messageId: number,
+  ): Promise<void> {
+    return this.conversations.rewind(id, messageId);
   }
 }

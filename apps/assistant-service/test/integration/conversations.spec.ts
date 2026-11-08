@@ -6,7 +6,7 @@ import {
 } from '@graph-rag/contracts';
 import { GraphStore } from '@graph-rag/graph-store';
 import { ChatModel, Embedder, ModelUnavailableError, type ChatRequest } from '@graph-rag/inference';
-import { conversations, RelationalStore } from '@graph-rag/relational-store';
+import { conversations, eq, RelationalStore } from '@graph-rag/relational-store';
 import { FakeChatModel, FakeEmbedder } from '@graph-rag/testing';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -73,10 +73,14 @@ describe('conversations API', () => {
     return conversationSchema.parse(body).id;
   }
 
-  async function sendTurn(id: string, content: string): Promise<TurnEvent[]> {
+  async function sendTurn(
+    id: string,
+    content: string,
+    replacesFromMessageId?: number,
+  ): Promise<TurnEvent[]> {
     const response = await request(app.getHttpServer())
       .post(`/conversations/${id}/turns`)
-      .send({ content })
+      .send({ content, replacesFromMessageId })
       .expect(201)
       .expect('Content-Type', /text\/event-stream/);
     return response.text
@@ -234,6 +238,77 @@ describe('conversations API', () => {
       { type: 'analysis', route: 'knowledge_base', standaloneQuestion: 'Who manages the team?' },
       { type: 'error', message: 'provider down' },
     ]);
+  });
+
+  async function readDetails(id: string) {
+    const { body } = await request(app.getHttpServer()).get(`/conversations/${id}`).expect(200);
+    return conversationDetailsSchema.parse(body);
+  }
+
+  it('asks a question again in place of itself and everything after it', async () => {
+    await createKnowledge();
+    const id = await createConversation();
+    await sendTurn(id, 'Who manages the team?');
+    await sendTurn(id, 'Who is in it?');
+    const [first] = (await readDetails(id)).messages;
+
+    const events = await sendTurn(id, 'Who leads the team?', first?.id);
+
+    expect(events.at(-1)).toMatchObject({ type: 'done' });
+    const details = await readDetails(id);
+    expect(details.title).toBe('Who leads the team?');
+    expect(details.messages.map((message) => [message.role, message.content])).toEqual([
+      ['user', 'Who leads the team?'],
+      ['assistant', 'Alice does.'],
+    ]);
+  });
+
+  it('rewinds a conversation, and drops a summary that covered what went', async () => {
+    const id = await createConversation();
+    await sendTurn(id, 'Who manages the team?');
+    await sendTurn(id, 'Who is in it?');
+    const ids = (await readDetails(id)).messages.map((message) => message.id);
+    await relational.db
+      .update(conversations)
+      .set({ summary: 'About the first turn.', summarisedUpToMessageId: ids[1] })
+      .where(eq(conversations.id, id));
+
+    await request(app.getHttpServer())
+      .delete(`/conversations/${id}/messages/${ids[2]}`)
+      .expect(204);
+    expect((await readDetails(id)).messages.map((message) => message.id)).toEqual(ids.slice(0, 2));
+    const [kept] = await relational.db.select().from(conversations).where(eq(conversations.id, id));
+    expect(kept?.summary).toBe('About the first turn.');
+
+    await request(app.getHttpServer())
+      .delete(`/conversations/${id}/messages/${ids[0]}`)
+      .expect(204);
+    const emptied = await readDetails(id);
+    expect(emptied.messages).toEqual([]);
+    expect(emptied.title).toBeNull();
+    const [dropped] = await relational.db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.id, id));
+    expect(dropped?.summary).toBeNull();
+    expect(dropped?.summarisedUpToMessageId).toBeNull();
+  });
+
+  it('rewinds only from a question of the conversation', async () => {
+    const id = await createConversation();
+    await sendTurn(id, 'Who manages the team?');
+    const answer = (await readDetails(id)).messages[1];
+
+    await request(app.getHttpServer())
+      .delete(`/conversations/${id}/messages/${answer?.id}`)
+      .expect(404);
+    await request(app.getHttpServer()).delete(`/conversations/${id}/messages/999999`).expect(404);
+    await request(app.getHttpServer()).delete(`/conversations/${id}/messages/first`).expect(400);
+    await request(app.getHttpServer())
+      .post(`/conversations/${id}/turns`)
+      .send({ content: 'Hello', replacesFromMessageId: answer?.id })
+      .expect(404);
+    expect((await readDetails(id)).messages).toHaveLength(2);
   });
 
   it('answers the health check', async () => {

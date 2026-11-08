@@ -1,4 +1,4 @@
-import { turnEventSchema, type TurnEvent } from '@graph-rag/contracts';
+import { turnEventSchema, type SendMessageRequest, type TurnEvent } from '@graph-rag/contracts';
 import { CONVERSATIONS_URL } from './conversations-api';
 import { ApiError, send } from './http';
 
@@ -8,13 +8,13 @@ const DATA_PREFIX = 'data: ';
 /** Uses fetch with a readable stream, because EventSource cannot send a POST. */
 export async function* streamTurn(
   conversationId: string,
-  content: string,
+  request: SendMessageRequest,
   signal: AbortSignal,
 ): AsyncGenerator<TurnEvent> {
   const response = await send(`${CONVERSATIONS_URL}/${conversationId}/turns`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify(request),
     signal,
   });
   if (response.body === null) {

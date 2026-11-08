@@ -1,4 +1,4 @@
-import type { Message, RetrievedGraph } from '@graph-rag/contracts';
+import type { ConversationDetails, Message, RetrievedGraph } from '@graph-rag/contracts';
 import type { TurnState } from './turn-state';
 
 export interface ConversationTurn {
@@ -24,6 +24,23 @@ export function groupIntoTurns(messages: Message[]): ConversationTurn[] {
 
 export function hasGraph(message: Message): boolean {
   return (message.metadata?.graph?.nodes.length ?? 0) > 0;
+}
+
+/** What the server keeps after a rewind from this message, for the screen to show at once. */
+export function dropMessagesFrom(
+  details: ConversationDetails,
+  messageId: number,
+): ConversationDetails {
+  return { ...details, messages: details.messages.filter((message) => message.id < messageId) };
+}
+
+/** What asking a question again throws away, said before it happens. */
+export function describeLoss(laterTurns: number, hasAnswer: boolean): string {
+  if (laterTurns > 0) {
+    const questions = laterTurns === 1 ? 'question' : `${laterTurns} questions`;
+    return `This replaces its answer and the ${questions} after it.`;
+  }
+  return hasAnswer ? 'This replaces its answer.' : '';
 }
 
 export function isChatEmpty(messages: Message[], turn: TurnState, isLoading: boolean): boolean {

@@ -1,11 +1,14 @@
+import type { ConversationDetails } from '@graph-rag/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createConversation,
   deleteConversation,
+  deleteMessagesFrom,
   getConversation,
   listConversations,
 } from '../../api/conversations-api';
 import { CONVERSATIONS_KEY, conversationKey } from './conversation-keys';
+import { dropMessagesFrom } from './turns';
 
 export function useConversations() {
   const client = useQueryClient();
@@ -34,4 +37,30 @@ export function useConversation(id: string | undefined) {
     isLoading: conversation.isLoading,
     error: conversation.error,
   };
+}
+
+interface Rewind {
+  conversationId: string;
+  questionId: number;
+}
+
+/** Takes a question and what came after it off the screen at once, and then off the server. */
+export function useRewind() {
+  const client = useQueryClient();
+  const rewind = useMutation({
+    mutationFn: ({ conversationId, questionId }: Rewind) =>
+      deleteMessagesFrom(conversationId, questionId),
+    onMutate: ({ conversationId, questionId }: Rewind) => {
+      client.setQueryData<ConversationDetails>(
+        conversationKey(conversationId),
+        (details) => details && dropMessagesFrom(details, questionId),
+      );
+    },
+    onSettled: (_result, _error, { conversationId }) =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: conversationKey(conversationId) }),
+        client.invalidateQueries({ queryKey: CONVERSATIONS_KEY }),
+      ]),
+  });
+  return { rewind: rewind.mutate, error: rewind.error };
 }

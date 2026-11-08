@@ -2,7 +2,15 @@ import type { Citation, Message, RetrievedGraph } from '@graph-rag/contracts';
 import { describe, expect, it } from 'vitest';
 import { splitAnswer } from './answer-parts';
 import { applyTurnEvent, finishTurn, IDLE_TURN, startTurn } from './turn-state';
-import { findActiveAnswer, findLivePlace, groupIntoTurns, isChatEmpty, selectGraph } from './turns';
+import {
+  describeLoss,
+  dropMessagesFrom,
+  findActiveAnswer,
+  findLivePlace,
+  groupIntoTurns,
+  isChatEmpty,
+  selectGraph,
+} from './turns';
 
 const graphOf = (name: string): RetrievedGraph => ({
   nodes: [{ name, type: null, description: null, activation: 1, isSeed: true }],
@@ -146,6 +154,30 @@ describe('findLivePlace', () => {
     const turn = { ...startTurn('id', 'Q'), text: 'Done. ' };
 
     expect(findLivePlace(turns, turn)).toBe('none');
+  });
+});
+
+describe('dropMessagesFrom', () => {
+  it('keeps what came before a message', () => {
+    const details = {
+      id: 'c',
+      title: 'T',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      messages: [question(1), answer(2, null), question(3), answer(4, null)],
+    };
+
+    expect(dropMessagesFrom(details, 3).messages.map((message) => message.id)).toEqual([1, 2]);
+    expect(dropMessagesFrom(details, 1).messages).toEqual([]);
+  });
+});
+
+describe('describeLoss', () => {
+  it('says what asking again throws away', () => {
+    expect(describeLoss(0, false)).toBe('');
+    expect(describeLoss(0, true)).toBe('This replaces its answer.');
+    expect(describeLoss(1, true)).toBe('This replaces its answer and the question after it.');
+    expect(describeLoss(3, true)).toBe('This replaces its answer and the 3 questions after it.');
   });
 });
 

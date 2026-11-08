@@ -5,7 +5,7 @@ import type {
   RetrievedGraph,
 } from '@graph-rag/contracts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Link, MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatPage } from './ChatPage';
@@ -88,7 +88,7 @@ describe('ChatPage', () => {
     );
   }
 
-  const sendButton = () => screen.getByRole<HTMLButtonElement>('button', { name: /^Ask/ });
+  const sendButton = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Ask' });
 
   beforeEach(() => {
     details = { ...conversation, messages: [] };
@@ -323,6 +323,132 @@ describe('ChatPage', () => {
 
     expect(screen.getByTestId('graph').textContent).toBe('bob');
     expect(screen.getByText('Older?').closest('.turn')?.classList).toContain('is-active');
+  });
+
+  describe('changing what was asked', () => {
+    const twoTurns: ConversationDetails = {
+      ...answered,
+      messages: [
+        ...answered.messages,
+        { id: 3, role: 'user', content: 'And who else?', metadata: null, createdAt: TIMESTAMP },
+        {
+          id: 4,
+          role: 'assistant',
+          content: 'Bob does too.',
+          metadata: answered.messages[1]?.metadata ?? null,
+          createdAt: TIMESTAMP,
+        },
+      ],
+    };
+
+    const turnRequests = () =>
+      vi
+        .mocked(fetch)
+        .mock.calls.filter(([url]) => String(url).endsWith('/turns'))
+        .map(([, init]) => JSON.parse(String(init?.body)) as unknown);
+
+    it('edits a question, says what that replaces, and asks in its place', async () => {
+      details = twoTurns;
+      renderPage(`/chat/${ID}`);
+      const [firstEdit] = await screen.findAllByRole('button', { name: 'Edit the question' });
+
+      fireEvent.click(firstEdit as HTMLElement);
+      expect(screen.getByText('This replaces its answer and the question after it.')).toBeTruthy();
+      const editor = screen.getByRole('textbox', { name: 'Question' });
+      fireEvent.change(editor, { target: { value: 'Who leads?' } });
+      fireEvent.click(within(editor.closest('form') as HTMLElement).getByText('Ask again'));
+
+      expect(screen.queryByText('Bob does too.')).toBeNull();
+      await waitFor(() =>
+        expect(turnRequests()).toEqual([{ content: 'Who leads?', replacesFromMessageId: 1 }]),
+      );
+    });
+
+    it('leaves an edit with Escape, and asks nothing', async () => {
+      details = twoTurns;
+      renderPage(`/chat/${ID}`);
+      const [firstEdit] = await screen.findAllByRole('button', { name: 'Edit the question' });
+
+      fireEvent.click(firstEdit as HTMLElement);
+      fireEvent.keyDown(screen.getByRole('textbox', { name: 'Question' }), { key: 'Escape' });
+
+      expect(screen.queryByRole('textbox', { name: 'Question' })).toBeNull();
+      expect(turnRequests()).toEqual([]);
+    });
+
+    it('asks the last question again', async () => {
+      details = twoTurns;
+      renderPage(`/chat/${ID}`);
+
+      fireEvent.click(await screen.findByRole('button', { name: /Ask again/ }));
+
+      await waitFor(() =>
+        expect(turnRequests()).toEqual([{ content: 'And who else?', replacesFromMessageId: 3 }]),
+      );
+    });
+
+    it('offers to ask again a question left without an answer', async () => {
+      details = { ...answered, messages: [answered.messages[0] as Message] };
+      renderPage(`/chat/${ID}`);
+
+      expect(await screen.findByText(/No answer\./)).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: /Ask again/ }));
+
+      await waitFor(() =>
+        expect(turnRequests()).toEqual([{ content: 'Who manages?', replacesFromMessageId: 1 }]),
+      );
+    });
+
+    it('deletes a question and everything after it, after asking', async () => {
+      details = twoTurns;
+      vi.mocked(fetch).mockImplementation(async (url, init) => {
+        if (init?.method === 'DELETE') {
+          details = { ...twoTurns, messages: twoTurns.messages.slice(0, 2) };
+          return new Response(null, { status: 204 });
+        }
+        return String(url).endsWith('/conversations') ? json([conversation]) : json(details);
+      });
+      renderPage(`/chat/${ID}`);
+      const [, secondDelete] = await screen.findAllByRole('button', {
+        name: 'Delete this question and everything after it',
+      });
+
+      fireEvent.click(secondDelete as HTMLElement);
+      fireEvent.click(screen.getByText('Sure?'));
+
+      await waitFor(() => expect(screen.queryByText('Bob does too.')).toBeNull());
+      expect(screen.getByText(/Alice does\./)).toBeTruthy();
+      await waitFor(() =>
+        expect(fetch).toHaveBeenCalledWith(
+          `/api/assistant/conversations/${ID}/messages/3`,
+          expect.objectContaining({ method: 'DELETE' }),
+        ),
+      );
+    });
+
+    it('hides what changes the conversation while an answer is on its way', async () => {
+      details = answered;
+      vi.mocked(fetch).mockImplementation(async (url) => {
+        if (String(url).endsWith('/turns')) {
+          return new Response(new ReadableStream(), {
+            headers: { 'Content-Type': 'text/event-stream' },
+          });
+        }
+        return String(url).endsWith('/conversations') ? json([conversation]) : json(details);
+      });
+      renderPage(`/chat/${ID}`);
+      await screen.findByRole('button', { name: 'Edit the question' });
+
+      fireEvent.change(screen.getByPlaceholderText(/Ask about/), {
+        target: { value: 'Next?' },
+      });
+      fireEvent.click(sendButton());
+
+      await waitFor(() =>
+        expect(screen.queryByRole('button', { name: 'Edit the question' })).toBeNull(),
+      );
+      expect(screen.queryByRole('button', { name: /Ask again/ })).toBeNull();
+    });
   });
 
   it('keeps a pasted paragraph out of the display size', async () => {

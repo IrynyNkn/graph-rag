@@ -3,9 +3,11 @@ import {
   and,
   asc,
   conversations,
+  count,
   desc,
   eq,
   gt,
+  gte,
   lt,
   messages,
   RelationalStore,
@@ -95,6 +97,36 @@ export class RelationalConversationRepository extends ConversationRepository {
         .set({ updatedAt: new Date() })
         .where(eq(conversations.id, conversationId));
       return toMessage(row);
+    });
+  }
+
+  async findMessage(conversationId: string, messageId: number): Promise<Message | null> {
+    const [row] = await this.store.db
+      .select()
+      .from(messages)
+      .where(and(eq(messages.conversationId, conversationId), eq(messages.id, messageId)));
+    return row === undefined ? null : toMessage(row);
+  }
+
+  async deleteMessagesFrom(conversationId: string, messageId: number): Promise<void> {
+    await this.store.db.transaction(async (transaction) => {
+      await transaction
+        .delete(messages)
+        .where(and(eq(messages.conversationId, conversationId), gte(messages.id, messageId)));
+      const [left] = await transaction
+        .select({ total: count() })
+        .from(messages)
+        .where(eq(messages.conversationId, conversationId));
+      const isStale = sql`${conversations.summarisedUpToMessageId} >= ${messageId}`;
+      await transaction
+        .update(conversations)
+        .set({
+          title: left?.total === 0 ? null : conversations.title,
+          summary: sql`case when ${isStale} then null else ${conversations.summary} end`,
+          summarisedUpToMessageId: sql`case when ${isStale} then null else ${conversations.summarisedUpToMessageId} end`,
+          updatedAt: new Date(),
+        })
+        .where(eq(conversations.id, conversationId));
     });
   }
 

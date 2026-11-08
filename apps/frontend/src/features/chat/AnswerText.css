@@ -1,0 +1,30 @@
+.word {
+  display: inline-block;
+  animation: word-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@keyframes word-in {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(3px);
+  }
+}
+
+.answer-caret {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 1px;
+  animation: caret 1s ease-in-out infinite;
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0.25;
+    transform: scale(0.75);
+  }
+}

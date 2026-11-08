@@ -68,6 +68,23 @@ export class FakeConversationRepository extends ConversationRepository {
     return stored;
   }
 
+  async findMessage(conversationId: string, messageId: number): Promise<Message | null> {
+    return (
+      this.require(conversationId).messages.find((message) => message.id === messageId) ?? null
+    );
+  }
+
+  async deleteMessagesFrom(conversationId: string, messageId: number): Promise<void> {
+    const row = this.require(conversationId);
+    row.messages = row.messages.filter((message) => message.id < messageId);
+    if ((row.summarisedUpToMessageId ?? 0) >= messageId) {
+      Object.assign(row, { summary: null, summarisedUpToMessageId: null });
+    }
+    if (row.messages.length === 0) {
+      row.title = null;
+    }
+  }
+
   async findSummaryState(id: string): Promise<SummaryState> {
     return this.require(id);
   }

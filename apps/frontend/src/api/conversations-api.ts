@@ -23,3 +23,8 @@ export function getConversation(id: string): Promise<ConversationDetails> {
 export async function deleteConversation(id: string): Promise<void> {
   await send(`${CONVERSATIONS_URL}/${id}`, { method: 'DELETE' });
 }
+
+/** Deletes a question and everything after it. */
+export async function deleteMessagesFrom(conversationId: string, messageId: number): Promise<void> {
+  await send(`${CONVERSATIONS_URL}/${conversationId}/messages/${messageId}`, { method: 'DELETE' });
+}

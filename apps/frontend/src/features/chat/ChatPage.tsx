@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { GraphView } from '../graph/GraphView';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
 import { IDLE_TURN } from './turn-state';
+import type { TurnActions } from './TurnEntry';
 import { isChatEmpty, selectGraph } from './turns';
-import { useConversation, useConversations } from './use-conversations';
+import { useConversation, useConversations, useRewind } from './use-conversations';
 import { useHeldGraph } from './use-held-graph';
 import { useTurn } from './use-turn';
 import './chat.css';
@@ -15,7 +16,8 @@ export function ChatPage() {
   const navigate = useNavigate();
   const { error: listError, create } = useConversations();
   const { messages, isLoading, error: conversationError } = useConversation(conversationId);
-  const failure = conversationError ?? listError;
+  const { rewind, error: rewindError } = useRewind();
+  const failure = conversationError ?? listError ?? rewindError;
   const { turn: anyTurn, send } = useTurn();
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
 
@@ -33,6 +35,25 @@ export function ChatPage() {
     await send(id, question);
   };
 
+  const actions = useMemo<TurnActions>(
+    () => ({
+      isLocked: anyTurn.isStreaming,
+      askAgain: (questionId, question) => {
+        if (conversationId !== undefined) {
+          setSelectedMessageId(null);
+          void send(conversationId, question, questionId);
+        }
+      },
+      rewind: (questionId) => {
+        if (conversationId !== undefined) {
+          setSelectedMessageId(null);
+          rewind({ conversationId, questionId });
+        }
+      },
+    }),
+    [anyTurn.isStreaming, conversationId, rewind, send],
+  );
+
   return (
     <div className="chat">
       <section className={isEmpty ? 'chat-column is-empty' : 'chat-column'}>
@@ -42,6 +63,7 @@ export function ChatPage() {
           turn={turn}
           isEmpty={isEmpty}
           selectedMessageId={selectedMessageId}
+          actions={actions}
           onSelect={setSelectedMessageId}
         />
         <Composer isCentered={isEmpty} disabled={anyTurn.isStreaming} onSend={handleSend} />

@@ -1,20 +1,14 @@
 import type { Message } from '@graph-rag/contracts';
 import { AnimatePresence, motion } from 'motion/react';
-import { memo, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { EASE_OUT, SNAPPY } from '../../app/motion';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { EASE_OUT } from '../../app/motion';
 import { AnswerText } from './AnswerText';
 import { Sources } from './Sources';
 import type { TurnState } from './turn-state';
-import {
-  findActiveAnswer,
-  findLivePlace,
-  groupIntoTurns,
-  hasGraph,
-  type ConversationTurn,
-} from './turns';
+import { Question, TurnEntry, type TurnActions } from './TurnEntry';
+import { findActiveAnswer, findLivePlace, groupIntoTurns } from './turns';
 import './MessageList.css';
 
-const LONG_QUESTION_CHARS = 140;
 const ENTRANCE = { opacity: 0, y: 10 };
 const SETTLED = { opacity: 1, y: 0 };
 
@@ -23,6 +17,7 @@ interface MessageListProps {
   turn: TurnState;
   isEmpty: boolean;
   selectedMessageId: number | null;
+  actions: TurnActions;
   onSelect: (id: number) => void;
 }
 
@@ -31,9 +26,11 @@ export function MessageList({
   turn,
   isEmpty,
   selectedMessageId,
+  actions,
   onSelect,
 }: MessageListProps) {
   const scroller = useRef<HTMLDivElement>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   useEffect(() => {
     const element = scroller.current;
@@ -54,15 +51,23 @@ export function MessageList({
       <AnimatePresence initial={false} mode="popLayout">
         {isEmpty && <Invitation key="invitation" />}
       </AnimatePresence>
-      {turns.map((item, index) => (
-        <TurnEntry
-          key={item.question?.id ?? item.answer?.id}
-          turn={item}
-          isActive={item.answer !== null && item.answer.id === activeId}
-          live={livePlace === 'last-turn' && index === turns.length - 1 ? liveAnswer : null}
-          onSelect={onSelect}
-        />
-      ))}
+      {turns.map((item, index) => {
+        const isLast = index === turns.length - 1 && livePlace !== 'new-turn';
+        return (
+          <TurnEntry
+            key={item.question?.id ?? item.answer?.id}
+            turn={item}
+            isActive={item.answer !== null && item.answer.id === activeId}
+            isLast={isLast}
+            laterTurns={turns.length - index - 1}
+            isEditing={item.question !== null && item.question.id === editingId}
+            live={livePlace === 'last-turn' && index === turns.length - 1 ? liveAnswer : null}
+            actions={actions}
+            onSelect={onSelect}
+            onEdit={setEditingId}
+          />
+        );
+      })}
       {livePlace === 'new-turn' && (
         <motion.article
           className="turn"
@@ -70,7 +75,9 @@ export function MessageList({
           animate={SETTLED}
           transition={{ duration: 0.45, ease: EASE_OUT }}
         >
-          <Question text={turn.question ?? ''} />
+          <header className="turn-head">
+            <Question text={turn.question ?? ''} />
+          </header>
           {liveAnswer}
         </motion.article>
       )}
@@ -107,41 +114,4 @@ function LiveAnswer({ turn }: { turn: TurnState }) {
       <Sources citations={turn.citations} />
     </div>
   );
-}
-
-interface TurnEntryProps {
-  turn: ConversationTurn;
-  isActive: boolean;
-  live: ReactNode;
-  onSelect: (id: number) => void;
-}
-
-/** Memoised, so that a long conversation does not re-render for every token of its last answer. */
-const TurnEntry = memo(function TurnEntry({ turn, isActive, live, onSelect }: TurnEntryProps) {
-  const { question, answer } = turn;
-  const canSelect = answer !== null && hasGraph(answer);
-  const classes = ['turn', isActive && 'is-active', canSelect && 'can-select'];
-  return (
-    <article
-      className={classes.filter(Boolean).join(' ')}
-      onClick={canSelect ? () => onSelect(answer.id) : undefined}
-    >
-      {isActive && (
-        <motion.span layoutId="active-turn" className="turn-marker" transition={SNAPPY} />
-      )}
-      {question && <Question text={question.content} />}
-      {answer && (
-        <div className="turn-answer">
-          <AnswerText text={answer.content} />
-          <Sources citations={answer.metadata?.citations ?? []} />
-        </div>
-      )}
-      {live}
-    </article>
-  );
-});
-
-function Question({ text }: { text: string }) {
-  const isLong = text.length > LONG_QUESTION_CHARS;
-  return <h2 className={isLong ? 'turn-question is-long' : 'turn-question'}>{text}</h2>;
 }

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { FakeConversationRepository } from '../../../test/fake-conversation.repository.js';
 import { testConfig } from '../../../test/test-config.js';
 import { ConversationsService } from '../conversations/conversations.service.js';
-import { ConversationNotFoundError } from '../conversations/errors.js';
+import { ConversationNotFoundError, QuestionNotFoundError } from '../conversations/errors.js';
 import { HistoryLoader } from '../conversations/history-loader.js';
 import { QueryAnalyzer } from '../query/analysis/query-analyzer.js';
 import { AnswerStrategy, type AnswerEvent } from '../query/answering/answer-strategy.js';
@@ -79,11 +79,13 @@ describe('TurnService', () => {
   });
 
   it('rejects an unknown conversation before anything is streamed', async () => {
-    await expect(createService().start('missing', 'Q')).rejects.toThrow(ConversationNotFoundError);
+    await expect(createService().start('missing', { content: 'Q' })).rejects.toThrow(
+      ConversationNotFoundError,
+    );
   });
 
   it('answers a first question from the knowledge base and saves both messages', async () => {
-    const events = await collect(await createService().start(id, 'Who is Alice?'));
+    const events = await collect(await createService().start(id, { content: 'Who is Alice?' }));
 
     expect(events.map((event) => event.type)).toEqual([
       'analysis',
@@ -101,7 +103,7 @@ describe('TurnService', () => {
   });
 
   it('saves a snapshot of the graph and the citations with the answer', async () => {
-    const events = await collect(await createService().start(id, 'Who is Alice?'));
+    const events = await collect(await createService().start(id, { content: 'Who is Alice?' }));
 
     const done = events.at(-1);
     expect(done).toMatchObject({
@@ -120,9 +122,9 @@ describe('TurnService', () => {
 
   it('routes by the analysis and passes on the reformulated question', async () => {
     const service = createService();
-    await collect(await service.start(id, 'Who is Alice?'));
+    await collect(await service.start(id, { content: 'Who is Alice?' }));
 
-    const events = await collect(await service.start(id, 'And her manager?'));
+    const events = await collect(await service.start(id, { content: 'And her manager?' }));
 
     expect(conversation.questions).toEqual(['Reformulated.']);
     expect(events[0]).toEqual({
@@ -136,7 +138,7 @@ describe('TurnService', () => {
   it('reports a failure as an event and keeps the question', async () => {
     knowledge = new ScriptedStrategy('knowledge_base', new ModelUnavailableError('provider down'));
 
-    const events = await collect(await createService().start(id, 'Who is Alice?'));
+    const events = await collect(await createService().start(id, { content: 'Who is Alice?' }));
 
     expect(events.at(-1)).toEqual({ type: 'error', message: 'provider down' });
     const { messages } = await new ConversationsService(repository).getDetails(id);
@@ -144,13 +146,65 @@ describe('TurnService', () => {
   });
 
   it('reports a route without a strategy', async () => {
-    const events = await collect(await createService([conversation]).start(id, 'Q'));
+    const events = await collect(await createService([conversation]).start(id, { content: 'Q' }));
 
     expect(events.at(-1)).toMatchObject({ type: 'error' });
   });
 
+  it('asks a question again in place of itself and everything after it', async () => {
+    const service = createService();
+    await collect(await service.start(id, { content: 'Who is Alice?' }));
+    await collect(await service.start(id, { content: 'And her manager?' }));
+    const [first] = (await new ConversationsService(repository).getDetails(id)).messages;
+
+    await collect(
+      await service.start(id, { content: 'Who is Bob?', replacesFromMessageId: first?.id }),
+    );
+
+    const { title, messages } = await new ConversationsService(repository).getDetails(id);
+    expect(messages.map((message) => [message.role, message.content])).toEqual([
+      ['user', 'Who is Bob?'],
+      ['assistant', 'From documents.'],
+    ]);
+    expect(title).toBe('Who is Bob?');
+    expect(knowledge.questions.at(-1)).toBe('Who is Bob?');
+  });
+
+  it('keeps what came before the question it asks again', async () => {
+    const service = createService();
+    await collect(await service.start(id, { content: 'Who is Alice?' }));
+    await collect(await service.start(id, { content: 'And her manager?' }));
+    const second = (await new ConversationsService(repository).getDetails(id)).messages[2];
+
+    await collect(
+      await service.start(id, { content: 'And her team?', replacesFromMessageId: second?.id }),
+    );
+
+    const { title, messages } = await new ConversationsService(repository).getDetails(id);
+    expect(messages.map((message) => message.content)).toEqual([
+      'Who is Alice?',
+      'From documents.',
+      'And her team?',
+      'From chat.',
+    ]);
+    expect(title).toBe('Who is Alice?');
+  });
+
+  it('refuses to replace what is not a question of this conversation, before streaming', async () => {
+    const service = createService();
+    await collect(await service.start(id, { content: 'Who is Alice?' }));
+    const answer = (await new ConversationsService(repository).getDetails(id)).messages[1];
+
+    await expect(
+      service.start(id, { content: 'Q', replacesFromMessageId: answer?.id }),
+    ).rejects.toThrow(QuestionNotFoundError);
+    await expect(service.start(id, { content: 'Q', replacesFromMessageId: 99 })).rejects.toThrow(
+      QuestionNotFoundError,
+    );
+  });
+
   it('stops without saving an answer when the caller goes away', async () => {
-    const events = await createService().start(id, 'Who is Alice?');
+    const events = await createService().start(id, { content: 'Who is Alice?' });
 
     await events.next();
     await events.return(undefined);

@@ -39,5 +39,7 @@ export type ConversationDetails = z.infer<typeof conversationDetailsSchema>;
 
 export const sendMessageRequestSchema = z.object({
   content: z.string().trim().min(1),
+  /** Asks a question again or edits it: the turn replaces this question and everything after it. */
+  replacesFromMessageId: z.number().int().positive().optional(),
 });
 export type SendMessageRequest = z.infer<typeof sendMessageRequestSchema>;

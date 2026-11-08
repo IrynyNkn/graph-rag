@@ -63,6 +63,8 @@ An error in a job marks the document `failed` and the message is acked; the user
 3. The strategy for the route answers. For the knowledge base: retrieve with QASA, emit the graph, build the context within the budget, dropping the lowest weights first, and stream the answer.
 4. Save the answer with its snapshot. When the client disconnects, the generator stops at its next step and the partial answer is not saved.
 
+Editing a question, or asking it again, sends the turn with `replacesFromMessageId`: before the turn starts, the service deletes that question and everything after it, so the new turn never sees the history it replaces. Deleting from a question works the same way without asking anything. A summary that covered a deleted message is dropped and folds again when needed, and a conversation left empty loses its title, so that its next question names it. Message IDs only grow, so "after" means a larger ID.
+
 ## QASA
 
 Query-Aware Spreading Activation, ported from `qasa_retriever.py` in `github.com/kinfi4/qasa-graph-rag` (MIT). It is not a dependency: clone it only into a temp folder. The port is `qasa.query.ts`, which keeps all state in a single stateless query instead of temporary node properties, so concurrent questions cannot disturb each other. It needs APOC but not GDS: `gds.similarity.cosine(a, b)` becomes `2 * vector.similarity.cosine(a, b) - 1`, because the native scale is `(cos + 1) / 2`.

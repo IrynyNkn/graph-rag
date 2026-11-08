@@ -4,7 +4,7 @@ import { FakeConversationRepository } from '../../../test/fake-conversation.repo
 import { testConfig } from '../../../test/test-config.js';
 import { formatHistory, isEmptyHistory } from './conversation-history.js';
 import { ConversationsService } from './conversations.service.js';
-import { ConversationNotFoundError } from './errors.js';
+import { ConversationNotFoundError, QuestionNotFoundError } from './errors.js';
 import { HistoryLoader } from './history-loader.js';
 
 describe('ConversationsService', () => {
@@ -65,6 +65,68 @@ describe('ConversationsService', () => {
     await service.delete(id);
 
     await expect(service.ensureExists(id)).rejects.toThrow(ConversationNotFoundError);
+  });
+
+  describe('rewinding', () => {
+    const metadata = {
+      route: 'conversation' as const,
+      standaloneQuestion: 'Q',
+      graph: null,
+      citations: [],
+    };
+
+    async function conversationOfTwoTurns() {
+      const { id } = await service.create();
+      const first = await service.appendUserMessage(id, 'First question');
+      await service.appendAssistantMessage(id, 'First answer', metadata);
+      const second = await service.appendUserMessage(id, 'Second question');
+      await service.appendAssistantMessage(id, 'Second answer', metadata);
+      return { id, first, second };
+    }
+
+    it('deletes a question and everything after it', async () => {
+      const { id, second } = await conversationOfTwoTurns();
+
+      await service.rewind(id, second.id);
+
+      const { title, messages } = await service.getDetails(id);
+      expect(messages.map((message) => message.content)).toEqual([
+        'First question',
+        'First answer',
+      ]);
+      expect(title).toBe('First question');
+    });
+
+    it('lets the next question name a conversation it empties', async () => {
+      const { id, first } = await conversationOfTwoTurns();
+
+      await service.rewind(id, first.id);
+      await service.appendUserMessage(id, 'New first question');
+
+      expect((await service.getDetails(id)).title).toBe('New first question');
+    });
+
+    it('drops a summary that covered what went, and keeps one that ends before', async () => {
+      const { id, first, second } = await conversationOfTwoTurns();
+      await repository.saveSummary(id, 'About the first turn.', first.id + 1);
+
+      await service.rewind(id, second.id);
+      expect((await repository.findSummaryState(id)).summary).toBe('About the first turn.');
+
+      await service.rewind(id, first.id);
+      expect(await repository.findSummaryState(id)).toMatchObject({
+        summary: null,
+        summarisedUpToMessageId: null,
+      });
+    });
+
+    it('refuses an answer, an unknown message and an unknown conversation', async () => {
+      const { id, first } = await conversationOfTwoTurns();
+
+      await expect(service.rewind(id, first.id + 1)).rejects.toThrow(QuestionNotFoundError);
+      await expect(service.rewind(id, 999)).rejects.toThrow(QuestionNotFoundError);
+      await expect(service.rewind('missing', first.id)).rejects.toThrow(ConversationNotFoundError);
+    });
   });
 });
 

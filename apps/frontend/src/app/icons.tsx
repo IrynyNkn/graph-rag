@@ -43,6 +43,32 @@ export function CloseIcon() {
   );
 }
 
+export function PencilIcon() {
+  return (
+    <Icon>
+      <path d="M10.6 3.4a1.6 1.6 0 0 1 2.3 2.3L5.8 12.8 3 13.5l.7-2.8z" />
+      <path d="m9.5 4.5 2.3 2.3" />
+    </Icon>
+  );
+}
+
+export function TrashIcon() {
+  return (
+    <Icon>
+      <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" />
+    </Icon>
+  );
+}
+
+export function AgainIcon() {
+  return (
+    <Icon>
+      <path d="M12.8 6.2A5 5 0 1 0 13 9" />
+      <path d="M13 3v3.4H9.6" />
+    </Icon>
+  );
+}
+
 export function ChevronIcon() {
   return (
     <Icon>

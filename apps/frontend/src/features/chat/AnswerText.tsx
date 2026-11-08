@@ -1,4 +1,5 @@
 import { splitAnswer } from './answer-parts';
+import './AnswerText.css';
 
 interface AnswerTextProps {
   text: string;

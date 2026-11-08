@@ -15,7 +15,7 @@ export class TurnsController {
     @Body(new ZodValidationPipe(sendMessageRequestSchema)) body: SendMessageRequest,
     @Res() response: Response,
   ): Promise<void> {
-    const events = await this.turns.start(id, body.content);
+    const events = await this.turns.start(id, body);
     const writer = new SseWriter(response);
     // A closed tab should not keep the model generating an answer nobody will read.
     response.on('close', () => {
