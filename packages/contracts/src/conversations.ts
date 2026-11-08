@@ -12,6 +12,8 @@ export const messageMetadataSchema = z.object({
   standaloneQuestion: z.string(),
   graph: retrievedGraphSchema.nullable(),
   citations: z.array(citationSchema),
+  /** The user stopped the answer, and this is what was written until then. */
+  stopped: z.boolean().optional(),
 });
 export type MessageMetadata = z.infer<typeof messageMetadataSchema>;
 

@@ -69,6 +69,14 @@ export function AgainIcon() {
   );
 }
 
+export function StopIcon() {
+  return (
+    <svg className="icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="9" height="9" rx="2" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function ChevronIcon() {
   return (
     <Icon>

@@ -154,9 +154,9 @@ describe('conversations API', () => {
     expect(events.map((event) => event.type)).toEqual([
       'analysis',
       'graph',
-      'token',
-      'token',
       'citations',
+      'token',
+      'token',
       'done',
     ]);
     const graphEvent = events.find((event) => event.type === 'graph');
@@ -309,6 +309,13 @@ describe('conversations API', () => {
       .send({ content: 'Hello', replacesFromMessageId: answer?.id })
       .expect(404);
     expect((await readDetails(id)).messages).toHaveLength(2);
+  });
+
+  it('accepts a stop whether or not a turn is running', async () => {
+    const id = await createConversation();
+
+    await request(app.getHttpServer()).post(`/conversations/${id}/turns/stop`).expect(204);
+    await request(app.getHttpServer()).post('/conversations/not-a-uuid/turns/stop').expect(400);
   });
 
   it('answers the health check', async () => {

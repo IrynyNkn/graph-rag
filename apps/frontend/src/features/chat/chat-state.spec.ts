@@ -81,7 +81,7 @@ describe('turn state', () => {
   });
 
   it('keeps only the error when it finishes', () => {
-    const state = { ...startTurn('id', 'Q'), text: 'Partial', error: 'down' };
+    const state = { ...startTurn('id', 'Q'), text: 'Partial', error: 'down', isStopping: true };
 
     expect(finishTurn(state)).toEqual({ ...IDLE_TURN, conversationId: 'id', error: 'down' });
   });

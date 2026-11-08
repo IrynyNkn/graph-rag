@@ -74,6 +74,23 @@
   transform: scale(0.97);
 }
 
+.composer-send.is-stop {
+  padding: 0 11px 0 9px;
+  background: var(--raised);
+  box-shadow: 0 0 0 1px var(--line-strong);
+  color: var(--text);
+}
+
+.composer-send.is-stop .icon {
+  width: 12px;
+  height: 12px;
+}
+
+.composer-send.is-stop:disabled {
+  background: var(--raised);
+  color: var(--text-3);
+}
+
 .composer-send:disabled {
   background: var(--line);
   color: var(--text-3);

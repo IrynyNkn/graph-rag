@@ -18,7 +18,7 @@ export function ChatPage() {
   const { messages, isLoading, error: conversationError } = useConversation(conversationId);
   const { rewind, error: rewindError } = useRewind();
   const failure = conversationError ?? listError ?? rewindError;
-  const { turn: anyTurn, send } = useTurn();
+  const { turn: anyTurn, send, stop } = useTurn();
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
 
   // A turn keeps running while the user looks at another conversation, but it belongs to its own.
@@ -66,7 +66,14 @@ export function ChatPage() {
           actions={actions}
           onSelect={setSelectedMessageId}
         />
-        <Composer isCentered={isEmpty} disabled={anyTurn.isStreaming} onSend={handleSend} />
+        <Composer
+          isCentered={isEmpty}
+          isLocked={anyTurn.isStreaming}
+          isAnswering={turn.isStreaming}
+          isStopping={turn.isStopping}
+          onSend={handleSend}
+          onStop={stop}
+        />
       </section>
       <GraphView
         graph={graph}

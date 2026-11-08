@@ -23,6 +23,11 @@ export async function* streamTurn(
   yield* readTurnEvents(response.body);
 }
 
+/** The running turn saves what it has written and ends its stream with `done`. */
+export async function stopTurn(conversationId: string): Promise<void> {
+  await send(`${CONVERSATIONS_URL}/${conversationId}/turns/stop`, { method: 'POST' });
+}
+
 export async function* readTurnEvents(
   body: ReadableStream<Uint8Array<ArrayBuffer>>,
 ): AsyncGenerator<TurnEvent> {

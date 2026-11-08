@@ -18,6 +18,8 @@ import {
 @Injectable()
 export class TurnService {
   private readonly logger = new Logger(TurnService.name);
+  /** Kept in memory, which works because the service runs as one instance. */
+  private readonly running = new Map<string, AbortController>();
 
   constructor(
     private readonly conversations: ConversationsService,
@@ -41,16 +43,34 @@ export class TurnService {
     return this.run(conversationId, content);
   }
 
+  /**
+   * Stops the running turn of a conversation at its next token. The turn keeps what it has
+   * written so far and ends as usual, so the stream that asked for it gets its `done`.
+   */
+  stop(conversationId: string): void {
+    this.running.get(conversationId)?.abort();
+  }
+
   private async *run(conversationId: string, question: string): AsyncGenerator<TurnEvent> {
+    const stopper = new AbortController();
+    this.running.set(conversationId, stopper);
     try {
-      yield* this.answer(conversationId, question);
+      yield* this.answer(conversationId, question, stopper.signal);
     } catch (error) {
       this.logger.error(`Turn in ${conversationId} failed: ${errorMessage(error)}`);
       yield { type: 'error', message: errorMessage(error) };
+    } finally {
+      if (this.running.get(conversationId) === stopper) {
+        this.running.delete(conversationId);
+      }
     }
   }
 
-  private async *answer(conversationId: string, question: string): AsyncGenerator<TurnEvent> {
+  private async *answer(
+    conversationId: string,
+    question: string,
+    stopped: AbortSignal,
+  ): AsyncGenerator<TurnEvent> {
     const userMessage = await this.conversations.appendUserMessage(conversationId, question);
     const history = await this.history.load(conversationId, userMessage.id);
     const analysis = await this.analyzer.analyze(question, history);
@@ -63,14 +83,21 @@ export class TurnService {
       history,
     });
     for await (const event of answer) {
+      // Leaving the loop closes the strategy, and with it the request to the model.
+      if (stopped.aborted) {
+        break;
+      }
       content += event.type === 'token' ? event.text : '';
       recordInMetadata(metadata, event);
       yield event;
     }
+    if (stopped.aborted && content.length === 0) {
+      return;
+    }
     const message = await this.conversations.appendAssistantMessage(
       conversationId,
       content,
-      metadata,
+      stopped.aborted ? { ...metadata, stopped: true } : metadata,
     );
     yield { type: 'done', message };
   }

@@ -103,26 +103,45 @@ function AnswerPart({ turn, isLast, isEditing, live, actions }: TurnEntryProps) 
   const { question, answer } = turn;
   const canAskAgain = isLast && !isEditing && question !== null && !actions.isLocked;
   const askAgain = canAskAgain && (
+    <AskAgainButton onAsk={() => actions.askAgain(question.id, question.content)} />
+  );
+  if (answer === null) {
+    return canAskAgain && !live ? <p className="turn-missing">No answer. {askAgain}</p> : null;
+  }
+  const stopped = answer.metadata?.stopped === true && (
+    <span className="turn-stopped">Stopped</span>
+  );
+  return (
+    <div className="turn-answer">
+      <AnswerText text={answer.content} />
+      <Sources
+        citations={answer.metadata?.citations ?? []}
+        tools={
+          (stopped || askAgain) && (
+            <>
+              {stopped}
+              {askAgain}
+            </>
+          )
+        }
+      />
+    </div>
+  );
+}
+
+function AskAgainButton({ onAsk }: { onAsk: () => void }) {
+  return (
     <button
       type="button"
       className="tool-button"
       onClick={(event) => {
         event.stopPropagation();
-        actions.askAgain(question.id, question.content);
+        onAsk();
       }}
     >
       <AgainIcon />
       Ask again
     </button>
-  );
-  if (answer === null) {
-    return canAskAgain && !live ? <p className="turn-missing">No answer. {askAgain}</p> : null;
-  }
-  return (
-    <div className="turn-answer">
-      <AnswerText text={answer.content} />
-      <Sources citations={answer.metadata?.citations ?? []} tools={askAgain || undefined} />
-    </div>
   );
 }
 

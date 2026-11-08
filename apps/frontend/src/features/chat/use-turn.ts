@@ -2,7 +2,7 @@ import type { ConversationDetails } from '@graph-rag/contracts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../../api/http';
-import { streamTurn } from '../../api/turn-stream';
+import { stopTurn, streamTurn } from '../../api/turn-stream';
 import { CONVERSATIONS_KEY, conversationKey } from './conversation-keys';
 import { applyTurnEvent, finishTurn, IDLE_TURN, startTurn, type TurnState } from './turn-state';
 import { dropMessagesFrom } from './turns';
@@ -48,5 +48,17 @@ export function useTurn() {
     [client],
   );
 
-  return { turn, send };
+  /** The server keeps what was written, and the stream ends the turn as usual. */
+  const stop = () => {
+    const { conversationId, isStreaming, isStopping } = turn;
+    if (conversationId === null || !isStreaming || isStopping) {
+      return;
+    }
+    setTurn((state) => ({ ...state, isStopping: true }));
+    stopTurn(conversationId).catch((error: unknown) => {
+      setTurn((state) => ({ ...state, isStopping: false, error: errorMessage(error) }));
+    });
+  };
+
+  return { turn, send, stop };
 }

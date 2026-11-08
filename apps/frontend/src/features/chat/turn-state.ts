@@ -8,6 +8,8 @@ export interface TurnState {
   citations: Citation[];
   error: string | null;
   isStreaming: boolean;
+  /** Asked to stop, and waiting for the server to save what was written. */
+  isStopping: boolean;
 }
 
 export const IDLE_TURN: TurnState = {
@@ -18,6 +20,7 @@ export const IDLE_TURN: TurnState = {
   citations: [],
   error: null,
   isStreaming: false,
+  isStopping: false,
 };
 
 export function startTurn(conversationId: string, question: string): TurnState {

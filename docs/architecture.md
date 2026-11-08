@@ -56,12 +56,14 @@ An error in a job marks the document `failed` and the message is acked; the user
 
 ## A turn
 
-`TurnService` is an async generator of events (analysis, graph, token, citations, done, error) that the controller writes to SSE, which keeps it testable without HTTP.
+`TurnService` is an async generator of events (analysis, graph, citations, token, done, error) that the controller writes to SSE, which keeps it testable without HTTP.
 
 1. Save the user message and load the history. Over `HISTORY_MAX_TOKENS`, the oldest messages fold into a summary.
 2. A router returns the route (`knowledge_base` or `conversation`) and a standalone question. With no history it skips the LLM. Invalid output falls back to the knowledge base and the question as it is.
-3. The strategy for the route answers. For the knowledge base: retrieve with QASA, emit the graph, build the context within the budget, dropping the lowest weights first, and stream the answer.
+3. The strategy for the route answers. For the knowledge base: retrieve with QASA, emit the graph, build the context within the budget, dropping the lowest weights first, emit the sources and stream the answer.
 4. Save the answer with its snapshot. When the client disconnects, the generator stops at its next step and the partial answer is not saved.
+
+The Stop button is a separate request, not a disconnect, so that the turn can save what it has written and still end with `done`. It aborts the conversation's running turn, held in memory because the service runs as one instance, and the turn leaves its loop at the next event. Leaving closes the strategy's generator and the model's stream, and the adapters then abort the request, so the model does not go on generating for nobody. The answer is saved with `stopped: true`. Sources come before the text so that a stopped answer keeps them, and a turn stopped before its first word saves no answer.
 
 Editing a question, or asking it again, sends the turn with `replacesFromMessageId`: before the turn starts, the service deletes that question and everything after it, so the new turn never sees the history it replaces. Deleting from a question works the same way without asking anything. A summary that covered a deleted message is dropped and folds again when needed, and a conversation left empty loses its title, so that its next question names it. Message IDs only grow, so "after" means a larger ID.
 

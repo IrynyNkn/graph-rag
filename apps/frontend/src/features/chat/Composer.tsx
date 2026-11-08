@@ -1,19 +1,32 @@
 import { motion } from 'motion/react';
 import { useState, type FormEvent, type KeyboardEvent } from 'react';
+import { StopIcon } from '../../app/icons';
 import { SMOOTH } from '../../app/motion';
 import './Composer.css';
 
 interface ComposerProps {
   /** Under the invitation in an empty chat, and at the bottom once there is a conversation. */
   isCentered: boolean;
-  disabled: boolean;
+  /** One turn runs at a time, and it may be running in another conversation. */
+  isLocked: boolean;
+  /** An answer is being written in this conversation, which is the one this can stop. */
+  isAnswering: boolean;
+  isStopping: boolean;
   onSend: (question: string) => void;
+  onStop: () => void;
 }
 
-export function Composer({ isCentered, disabled, onSend }: ComposerProps) {
+export function Composer({
+  isCentered,
+  isLocked,
+  isAnswering,
+  isStopping,
+  onSend,
+  onStop,
+}: ComposerProps) {
   const [text, setText] = useState('');
   const question = text.trim();
-  const canSend = !disabled && question.length > 0;
+  const canSend = !isLocked && question.length > 0;
 
   const submit = () => {
     if (canSend) {
@@ -31,6 +44,8 @@ export function Composer({ isCentered, disabled, onSend }: ComposerProps) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       submit();
+    } else if (event.key === 'Escape' && isAnswering) {
+      onStop();
     }
   };
 
@@ -50,15 +65,22 @@ export function Composer({ isCentered, disabled, onSend }: ComposerProps) {
           onChange={(event) => setText(event.target.value)}
           onKeyDown={handleKeyDown}
         />
-        <button
-          type="submit"
-          className={disabled ? 'composer-send is-busy' : 'composer-send'}
-          aria-label="Ask"
-          disabled={!canSend}
-        >
-          Ask
-          {disabled ? <i className="composer-spinner" aria-hidden="true" /> : <kbd>↵</kbd>}
-        </button>
+        {isAnswering ? (
+          <button
+            type="button"
+            className="composer-send is-stop"
+            disabled={isStopping}
+            onClick={onStop}
+          >
+            {isStopping ? <i className="composer-spinner" aria-hidden="true" /> : <StopIcon />}
+            {isStopping ? 'Stopping' : 'Stop'}
+          </button>
+        ) : (
+          <button type="submit" className="composer-send" aria-label="Ask" disabled={!canSend}>
+            Ask
+            <kbd>↵</kbd>
+          </button>
+        )}
       </div>
     </motion.form>
   );

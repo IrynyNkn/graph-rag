@@ -258,15 +258,15 @@ describe('KnowledgeBaseAnswerStrategy', () => {
     expect(strategy.supports('conversation')).toBe(false);
   });
 
-  it('emits the graph first, then tokens, then citations', async () => {
+  it('emits the graph first, then citations, then tokens', async () => {
     const strategy = createStrategy(retrieval, new FakeChatModel(() => 'Alice does.'), [
       citation('c1'),
     ]);
 
     const events = await collect(strategy.answer({ question: 'Who?', history }));
 
-    expect(events.map((event) => event.type)).toEqual(['graph', 'token', 'token', 'citations']);
-    expect(events.at(-1)).toEqual({ type: 'citations', citations: [citation('c1')] });
+    expect(events.map((event) => event.type)).toEqual(['graph', 'citations', 'token', 'token']);
+    expect(events[1]).toEqual({ type: 'citations', citations: [citation('c1')] });
   });
 
   it('puts the context, the summary and the history into the prompt', async () => {
@@ -296,7 +296,7 @@ describe('KnowledgeBaseAnswerStrategy', () => {
 
     expect(chat.lastPrompt).toContain('nothing relevant');
     expect(events[0]).toEqual({ type: 'graph', graph: { nodes: [], edges: [] } });
-    expect(events.at(-1)).toEqual({ type: 'citations', citations: [] });
+    expect(events[1]).toEqual({ type: 'citations', citations: [] });
   });
 });
 

@@ -135,6 +135,23 @@ describe('provider adapters', () => {
       });
     });
 
+    it('stops the model when the caller stops reading', async () => {
+      let closed = () => {};
+      const isClosed = new Promise<void>((resolve) => (closed = resolve));
+      const url = await provider.start((_body, response) => {
+        response.writeHead(200, { 'Content-Type': 'application/x-ndjson' });
+        response.write(`${JSON.stringify({ message: { content: 'Al' }, done: false })}\n`);
+        response.on('close', closed);
+      });
+
+      for await (const part of new OllamaChatModel(chatConfig(url)).stream(request)) {
+        expect(part).toBe('Al');
+        break;
+      }
+
+      await expect(isClosed).resolves.toBeUndefined();
+    });
+
     it('joins the stream for a complete answer', async () => {
       const url = await provider.start((_body, response) => ndjson(response, ['Al', 'ice']));
 

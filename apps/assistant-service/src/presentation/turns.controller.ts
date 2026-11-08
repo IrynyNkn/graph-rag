@@ -1,6 +1,15 @@
 import { sendMessageRequestSchema, type SendMessageRequest } from '@graph-rag/contracts';
 import { ZodValidationPipe } from '@graph-rag/nest-common';
-import { Body, Controller, Param, ParseUUIDPipe, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Res,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { TurnService } from '../application/turns/turn.service.js';
 import { SseWriter } from './sse-writer.js';
@@ -25,5 +34,12 @@ export class TurnsController {
       writer.write(event);
     }
     writer.end();
+  }
+
+  /** Nothing running is not an error: the turn may have just finished on its own. */
+  @Post('stop')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  stop(@Param('id', ParseUUIDPipe) id: string): void {
+    this.turns.stop(id);
   }
 }

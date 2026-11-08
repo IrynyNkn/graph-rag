@@ -28,13 +28,14 @@ export class KnowledgeBaseAnswerStrategy extends AnswerStrategy {
     yield { type: 'graph', graph: toRetrievedGraph(retrieval) };
 
     const context = await this.contextBuilder.build(retrieval);
+    // Before the answer, so that an answer stopped halfway still has its sources.
+    yield { type: 'citations', citations: context.chunks };
     const messages = isEmpty(context)
       ? buildNoKnowledgeMessages(history, question)
       : buildKnowledgeMessages(context, history, question);
     for await (const text of this.stream(messages)) {
       yield { type: 'token', text };
     }
-    yield { type: 'citations', citations: context.chunks };
   }
 
   private stream(messages: ChatMessage[]): AsyncIterable<string> {

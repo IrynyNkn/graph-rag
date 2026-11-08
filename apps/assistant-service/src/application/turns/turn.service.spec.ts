@@ -71,9 +71,9 @@ describe('TurnService', () => {
     }));
     knowledge = new ScriptedStrategy('knowledge_base', [
       { type: 'graph', graph },
+      { type: 'citations', citations: [citation] },
       { type: 'token', text: 'From ' },
       { type: 'token', text: 'documents.' },
-      { type: 'citations', citations: [citation] },
     ]);
     conversation = new ScriptedStrategy('conversation', [{ type: 'token', text: 'From chat.' }]);
   });
@@ -90,9 +90,9 @@ describe('TurnService', () => {
     expect(events.map((event) => event.type)).toEqual([
       'analysis',
       'graph',
-      'token',
-      'token',
       'citations',
+      'token',
+      'token',
       'done',
     ]);
     const { messages } = await new ConversationsService(repository).getDetails(id);
@@ -201,6 +201,60 @@ describe('TurnService', () => {
     await expect(service.start(id, { content: 'Q', replacesFromMessageId: 99 })).rejects.toThrow(
       QuestionNotFoundError,
     );
+  });
+
+  describe('stopping', () => {
+    async function runUntil(
+      service: TurnService,
+      isTheMoment: (event: TurnEvent) => boolean,
+    ): Promise<TurnEvent[]> {
+      const events: TurnEvent[] = [];
+      for await (const event of await service.start(id, { content: 'Who is Alice?' })) {
+        events.push(event);
+        if (isTheMoment(event)) {
+          service.stop(id);
+        }
+      }
+      return events;
+    }
+
+    it('keeps what was written, marks it stopped, and still ends with done', async () => {
+      const events = await runUntil(createService(), (event) => event.type === 'token');
+
+      expect(events.map((event) => event.type)).toEqual([
+        'analysis',
+        'graph',
+        'citations',
+        'token',
+        'done',
+      ]);
+      expect(events.at(-1)).toMatchObject({
+        message: { content: 'From ', metadata: { stopped: true, citations: [citation] } },
+      });
+    });
+
+    it('keeps no answer when stopped before any text', async () => {
+      const events = await runUntil(createService(), (event) => event.type === 'analysis');
+
+      expect(events.map((event) => event.type)).toEqual(['analysis']);
+      const { messages } = await new ConversationsService(repository).getDetails(id);
+      expect(messages.map((message) => message.role)).toEqual(['user']);
+    });
+
+    it('does not mark an answer that finished on its own', async () => {
+      const service = createService();
+      const events = await collect(await service.start(id, { content: 'Who is Alice?' }));
+
+      service.stop(id);
+
+      expect(events.at(-1)).toMatchObject({ message: { content: 'From documents.' } });
+      const { messages } = await new ConversationsService(repository).getDetails(id);
+      expect(messages[1]?.metadata?.stopped).toBeUndefined();
+    });
+
+    it('ignores a stop when nothing is running', () => {
+      expect(() => createService().stop('nothing')).not.toThrow();
+    });
   });
 
   it('stops without saving an answer when the caller goes away', async () => {

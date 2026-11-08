@@ -14,6 +14,7 @@ export class OllamaChatModel extends StreamingChatModel {
   }
 
   protected async *generate(request: ChatRequest, jsonSchema?: JsonSchema): AsyncIterable<string> {
+    let isDone = false;
     try {
       const parts = await this.client.chat({
         model: this.config.model,
@@ -28,8 +29,17 @@ export class OllamaChatModel extends StreamingChatModel {
           num_predict: request.maxOutputTokens,
         },
       });
-      for await (const part of parts) {
-        yield part.message.content;
+      try {
+        for await (const part of parts) {
+          yield part.message.content;
+        }
+        isDone = true;
+      } finally {
+        // The client keeps the request open when reading stops early, and Ollama would go on
+        // generating for nobody, holding the GPU.
+        if (!isDone) {
+          parts.abort();
+        }
       }
     } catch (error) {
       throw toOllamaError(error);

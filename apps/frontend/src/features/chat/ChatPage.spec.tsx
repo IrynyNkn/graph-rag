@@ -2,6 +2,7 @@ import type {
   Conversation,
   ConversationDetails,
   Message,
+  MessageMetadata,
   RetrievedGraph,
 } from '@graph-rag/contracts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -90,6 +91,33 @@ describe('ChatPage', () => {
 
   const sendButton = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Ask' });
 
+  /** Keeps a turn running until the test finishes it, and lets it send events on the way. */
+  function holdTurn() {
+    let write = (_events: unknown[]) => {};
+    let finish = () => {};
+    vi.mocked(fetch).mockImplementation(async (url) => {
+      const path = String(url);
+      if (path.endsWith('/turns/stop')) {
+        return new Response(null, { status: 204 });
+      }
+      if (!path.endsWith('/turns')) {
+        return path.endsWith('/conversations') ? json([conversation]) : json(details);
+      }
+      const encoder = new TextEncoder();
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          write = (events) => {
+            const frames = events.map((event) => `data: ${JSON.stringify(event)}\n\n`);
+            controller.enqueue(encoder.encode(frames.join('')));
+          };
+          finish = () => controller.close();
+        },
+      });
+      return new Response(body, { headers: { 'Content-Type': 'text/event-stream' } });
+    });
+    return { write: (events: unknown[]) => write(events), finish: () => finish() };
+  }
+
   beforeEach(() => {
     details = { ...conversation, messages: [] };
     turnEvents = [];
@@ -152,6 +180,7 @@ describe('ChatPage', () => {
     expect(await screen.findByText(/Alice does\./)).toBeTruthy();
     expect(screen.getByTestId('graph').textContent).toBe('alice');
     expect(screen.queryByText('Alice manages the team.')).toBeNull();
+    expect(screen.queryByText('Stopped')).toBeNull();
 
     fireEvent.click(screen.getByText('Sources (1)'));
     expect(screen.getByText('Alice manages the team.')).toBeTruthy();
@@ -198,24 +227,7 @@ describe('ChatPage', () => {
   });
 
   it('shows the state of a turn while it runs, and word by word', async () => {
-    let writeEvents = (_events: unknown[]) => {};
-    let finishStream = () => {};
-    vi.mocked(fetch).mockImplementation(async (url) => {
-      if (!String(url).endsWith('/turns')) {
-        return String(url).endsWith('/conversations') ? json([conversation]) : json(details);
-      }
-      const encoder = new TextEncoder();
-      const body = new ReadableStream<Uint8Array>({
-        start(controller) {
-          writeEvents = (events) => {
-            const frames = events.map((event) => `data: ${JSON.stringify(event)}\n\n`);
-            controller.enqueue(encoder.encode(frames.join('')));
-          };
-          finishStream = () => controller.close();
-        },
-      });
-      return new Response(body, { headers: { 'Content-Type': 'text/event-stream' } });
-    });
+    const stream = holdTurn();
     renderPage(`/chat/${ID}`);
 
     fireEvent.change(await screen.findByPlaceholderText(/Ask about/), {
@@ -225,17 +237,17 @@ describe('ChatPage', () => {
 
     expect(await screen.findByText('Looking through the graph')).toBeTruthy();
     expect(screen.getByTestId('graph').dataset.searching).toBe('true');
-    expect(sendButton().disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Ask' })).toBeNull();
 
-    writeEvents([{ type: 'graph', graph }]);
+    stream.write([{ type: 'graph', graph }]);
     expect(await screen.findByText('Writing the answer')).toBeTruthy();
     expect(screen.getByTestId('graph').dataset.searching).toBe('false');
 
-    writeEvents([{ type: 'token', text: 'Alice **does' }]);
+    stream.write([{ type: 'token', text: 'Alice **does' }]);
     const word = await screen.findByText('does');
     expect(word.classList).toContain('word');
 
-    finishStream();
+    stream.finish();
     await waitFor(() => expect(sendButton().disabled).toBe(true));
   });
 
@@ -448,6 +460,86 @@ describe('ChatPage', () => {
         expect(screen.queryByRole('button', { name: 'Edit the question' })).toBeNull(),
       );
       expect(screen.queryByRole('button', { name: /Ask again/ })).toBeNull();
+    });
+  });
+
+  describe('stopping an answer', () => {
+    const stopped: ConversationDetails = {
+      ...answered,
+      messages: [
+        answered.messages[0] as Message,
+        {
+          ...(answered.messages[1] as Message),
+          content: 'Alice',
+          metadata: { ...(answered.messages[1]?.metadata as MessageMetadata), stopped: true },
+        },
+      ],
+    };
+
+    const composer = () => screen.getByPlaceholderText(/Ask about/);
+    const stopButton = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Stop' });
+    const stopRequests = () =>
+      vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/turns/stop'));
+
+    async function askAndHold() {
+      const stream = holdTurn();
+      renderPage(`/chat/${ID}`);
+      fireEvent.change(await screen.findByPlaceholderText(/Ask about/), {
+        target: { value: 'Who manages?' },
+      });
+      fireEvent.click(sendButton());
+      await screen.findByRole('button', { name: 'Stop' });
+      return stream;
+    }
+
+    it('stops the answer being written and shows what the server kept', async () => {
+      const stream = await askAndHold();
+      stream.write([{ type: 'token', text: 'Alice' }]);
+
+      fireEvent.click(stopButton());
+
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Stopping' }).disabled).toBe(
+        true,
+      );
+      expect(fetch).toHaveBeenCalledWith(
+        `/api/assistant/conversations/${ID}/turns/stop`,
+        expect.objectContaining({ method: 'POST' }),
+      );
+      details = stopped;
+      stream.finish();
+      expect(await screen.findByText('Stopped')).toBeTruthy();
+      expect(sendButton().disabled).toBe(true);
+    });
+
+    it('stops with Escape from the composer, and asks the server only once', async () => {
+      await askAndHold();
+
+      fireEvent.keyDown(composer(), { key: 'Escape' });
+      fireEvent.keyDown(composer(), { key: 'Escape' });
+
+      expect(stopRequests()).toHaveLength(1);
+    });
+
+    it('leaves alone an answer being written in another conversation', async () => {
+      await askAndHold();
+
+      fireEvent.click(screen.getByText('Go to the other'));
+      fireEvent.change(composer(), { target: { value: 'Next?' } });
+
+      expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+      expect(sendButton().disabled).toBe(true);
+      fireEvent.keyDown(composer(), { key: 'Escape' });
+      expect(stopRequests()).toHaveLength(0);
+    });
+
+    it('says why an answer could not be stopped, and lets the user try again', async () => {
+      await askAndHold();
+      vi.mocked(fetch).mockImplementation(async () => json({ message: 'Stop failed' }, 500));
+
+      fireEvent.click(stopButton());
+
+      expect(await screen.findByText('Stop failed')).toBeTruthy();
+      expect(stopButton().disabled).toBe(false);
     });
   });
 
