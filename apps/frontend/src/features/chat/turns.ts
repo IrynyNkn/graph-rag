@@ -1,7 +1,8 @@
-import type { ConversationDetails, Message, RetrievedGraph } from '@graph-rag/contracts';
+import type { Citation, ConversationDetails, Message, RetrievedGraph } from '@graph-rag/contracts';
 import type { TurnState } from './turn-state';
 
 const WORD_BREAKS = /[^\p{L}\p{N}]+/gu;
+const NO_CITATIONS: Citation[] = [];
 
 export interface ConversationTurn {
   question: Message | null;
@@ -91,8 +92,24 @@ export function selectGraph(
   messages: Message[],
   selectedMessageId: number | null,
 ): RetrievedGraph | null {
-  if (turn.isStreaming && turn.analysis?.route !== 'conversation') {
+  if (retrievesOwnGraph(turn)) {
     return turn.graph;
   }
   return findActiveAnswer(messages, selectedMessageId)?.metadata?.graph ?? null;
+}
+
+/** The sources behind the graph on screen, which follow it. */
+export function selectCitations(
+  turn: TurnState,
+  messages: Message[],
+  selectedMessageId: number | null,
+): Citation[] {
+  if (retrievesOwnGraph(turn)) {
+    return turn.citations;
+  }
+  return findActiveAnswer(messages, selectedMessageId)?.metadata?.citations ?? NO_CITATIONS;
+}
+
+function retrievesOwnGraph(turn: TurnState): boolean {
+  return turn.isStreaming && turn.analysis?.route !== 'conversation';
 }

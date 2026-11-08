@@ -3,21 +3,35 @@ import { SMOOTH } from '../../app/motion';
 import type { FlowLayout } from './flow/layout';
 import { GraphEdgeLine } from './GraphEdgeLine';
 import { GraphNodeChip, HOP_DELAY } from './GraphNodeChip';
-import { edgeIsLit, findLitNodes, findRelationLabels, type GraphFocus } from './graph-focus';
+import {
+  edgeIsLit,
+  findLitNodes,
+  findRelationLabels,
+  type GraphFocus,
+  type GraphHighlight,
+} from './graph-focus';
 
 interface GraphDrawingProps {
   layout: FlowLayout;
-  focus: GraphFocus | null;
+  highlight: GraphHighlight | null;
   isAnswering: boolean;
   onFocus: (focus: GraphFocus) => void;
   onBlur: () => void;
 }
 
-export function GraphDrawing({ layout, focus, isAnswering, onFocus, onBlur }: GraphDrawingProps) {
+export function GraphDrawing({
+  layout,
+  highlight,
+  isAnswering,
+  onFocus,
+  onBlur,
+}: GraphDrawingProps) {
   const { width, height, scale, nodes, edges } = layout;
-  const litNodes = focus && findLitNodes(focus, edges);
-  const litEdges = focus ? edges.filter((edge) => edgeIsLit(focus, edge)) : [];
-  const labels = focus ? findRelationLabels(focus, layout) : [];
+  const litNodes = highlight && findLitNodes(highlight, edges);
+  const litEdges = highlight ? edges.filter((edge) => edgeIsLit(highlight, edge)) : [];
+  // A source can light many lines of one fan, and their labels would pile up.
+  const labels =
+    highlight && highlight.kind !== 'source' ? findRelationLabels(highlight, layout) : [];
   return (
     <div className="graph-scroll">
       <div className="graph-size" style={{ width: width * scale, height: height * scale }}>
@@ -34,7 +48,7 @@ export function GraphDrawing({ layout, focus, isAnswering, onFocus, onBlur }: Gr
                   key={edge.id}
                   edge={edge}
                   isLit={litEdges.includes(edge)}
-                  isDimmed={focus !== null && !litEdges.includes(edge)}
+                  isDimmed={highlight !== null && !litEdges.includes(edge)}
                   isAnswering={isAnswering}
                   onFocus={onFocus}
                   onBlur={onBlur}
@@ -62,7 +76,7 @@ export function GraphDrawing({ layout, focus, isAnswering, onFocus, onBlur }: Gr
                 key={node.name}
                 node={node}
                 index={index}
-                isFocused={focus?.kind === 'node' && focus.node === node}
+                isFocused={highlight?.kind === 'node' && highlight.node === node}
                 isDimmed={litNodes !== null && !litNodes.has(node.name)}
                 onFocus={onFocus}
                 onBlur={onBlur}

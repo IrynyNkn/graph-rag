@@ -90,6 +90,8 @@ There is no sidebar of chats, because that is the layout every chat app has, and
 
 The graph is a deterministic flow in `features/graph/flow/`, because a force layout overlaps its labels. Each column is one hop further from the seed, chips stay apart, and a dense graph draws smaller, down to 70%, before the panel scrolls. Chip text gets brighter with activation, on a root scale because a few nodes take most of it, and line width follows edge weight. The strongest path is the way from the first column with the most total weight. Chip widths are estimated from letter widths, so layout needs no canvas and no loaded font: a line starts hidden behind its chip, so a wrong estimate cannot show a gap.
 
+Every relation keeps the chunks it was extracted from, so pointing at a source under an answer lights the relations it gave, and the card of a relation quotes the sentence behind it. Only chunks that made it into the answer have their text at hand, so a relation from another chunk has no quote.
+
 Motion follows events and stops when nothing happens, which also saves the battery. The graph unfolds a hop at a time, and when another graph replaces it, what the two share travels to its new place, because edges and chips keep their identity. That needs every line to have the same path commands. The graph and older turns are memoised, because the page re-renders for every token.
 
 ## What real models taught

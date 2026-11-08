@@ -5,7 +5,7 @@ import { Composer } from './Composer';
 import { MessageList } from './MessageList';
 import { IDLE_TURN, isSearching } from './turn-state';
 import type { TurnActions } from './TurnEntry';
-import { isChatEmpty, selectGraph } from './turns';
+import { isChatEmpty, selectCitations, selectGraph } from './turns';
 import { useConversation, useConversations, useRewind } from './use-conversations';
 import { useHeldGraph } from './use-held-graph';
 import { useTurn } from './use-turn';
@@ -20,6 +20,7 @@ export function ChatPage() {
   const failure = conversationError ?? listError ?? rewindError;
   const { turn: anyTurn, send, stop } = useTurn();
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
+  const [sourceChunkId, setSourceChunkId] = useState<string | null>(null);
 
   // A turn keeps running while the user looks at another conversation, but it belongs to its own.
   const turn = anyTurn.conversationId === conversationId ? anyTurn : IDLE_TURN;
@@ -65,6 +66,7 @@ export function ChatPage() {
           selectedMessageId={selectedMessageId}
           actions={actions}
           onSelect={setSelectedMessageId}
+          onSourceHover={setSourceChunkId}
         />
         <Composer
           isCentered={isEmpty}
@@ -77,6 +79,8 @@ export function ChatPage() {
       </section>
       <GraphView
         graph={graph}
+        citations={selectCitations(turn, messages, selectedMessageId)}
+        sourceChunkId={sourceChunkId}
         isSearching={isSearching(turn)}
         isAnswering={turn.isStreaming && turn.graph !== null}
       />

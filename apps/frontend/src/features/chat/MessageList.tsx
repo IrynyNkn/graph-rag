@@ -20,6 +20,7 @@ interface MessageListProps {
   selectedMessageId: number | null;
   actions: TurnActions;
   onSelect: (id: number) => void;
+  onSourceHover: (chunkId: string | null) => void;
 }
 
 export function MessageList({
@@ -29,6 +30,7 @@ export function MessageList({
   selectedMessageId,
   actions,
   onSelect,
+  onSourceHover,
 }: MessageListProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -45,7 +47,9 @@ export function MessageList({
   const turns = useMemo(() => groupIntoTurns(messages), [messages]);
   const activeId = turn.isStreaming ? null : findActiveAnswer(messages, selectedMessageId)?.id;
   const livePlace = findLivePlace(turns, turn);
-  const liveAnswer = turn.isStreaming ? <LiveAnswer turn={turn} /> : null;
+  const liveAnswer = turn.isStreaming ? (
+    <LiveAnswer turn={turn} onSourceHover={onSourceHover} />
+  ) : null;
 
   return (
     <div ref={scroller} className={isEmpty ? 'timeline is-empty' : 'timeline'}>
@@ -66,6 +70,7 @@ export function MessageList({
             actions={actions}
             onSelect={onSelect}
             onEdit={setEditingId}
+            onSourceHover={onSourceHover}
           />
         );
       })}
@@ -102,7 +107,12 @@ function Invitation() {
   );
 }
 
-function LiveAnswer({ turn }: { turn: TurnState }) {
+interface LiveAnswerProps {
+  turn: TurnState;
+  onSourceHover: (chunkId: string | null) => void;
+}
+
+function LiveAnswer({ turn, onSourceHover }: LiveAnswerProps) {
   return (
     <div className="turn-answer">
       <AnalysisNote question={turn.question} analysis={turn.analysis} isLive />
@@ -113,7 +123,7 @@ function LiveAnswer({ turn }: { turn: TurnState }) {
           {isSearching(turn) ? 'Looking through the graph' : 'Writing the answer'}
         </span>
       )}
-      <AnswerFooter citations={turn.citations} />
+      <AnswerFooter citations={turn.citations} onSourceHover={onSourceHover} />
     </div>
   );
 }

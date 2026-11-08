@@ -6,6 +6,7 @@ import {
   edgeIsLit,
   findLitNodes,
   findRelationLabels,
+  findSourceHighlight,
   isStillDrawn,
   placeCard,
   type GraphFocus,
@@ -21,9 +22,9 @@ const graph: RetrievedGraph = {
     { name: 'other', type: null, description: null, activation: 1, isSeed: false },
   ],
   edges: [
-    { source: 'seed', target: 'middle', relations: ['owns'], chunkIds: [], weight: 2 },
-    { source: 'far', target: 'middle', relations: ['part of'], chunkIds: [], weight: 1 },
-    { source: 'seed', target: 'other', relations: ['uses'], chunkIds: [], weight: 1 },
+    { source: 'seed', target: 'middle', relations: ['owns'], chunkIds: ['c1'], weight: 2 },
+    { source: 'far', target: 'middle', relations: ['part of'], chunkIds: ['c2'], weight: 1 },
+    { source: 'seed', target: 'other', relations: ['uses'], chunkIds: ['c1', 'c3'], weight: 1 },
   ],
 };
 
@@ -44,6 +45,23 @@ function edgeFocus(id: string): GraphFocus {
   }
   return { kind: 'edge', edge };
 }
+
+describe('what a source lights up', () => {
+  it('lights the relations that came from it and the nodes they join', () => {
+    const highlight = findSourceHighlight('c1', layout);
+    if (highlight === null) {
+      throw new Error('No highlight');
+    }
+
+    expect(layout.edges.filter((edge) => edgeIsLit(highlight, edge))).toHaveLength(2);
+    expect(findLitNodes(highlight, layout.edges)).toEqual(new Set(['seed', 'middle', 'other']));
+  });
+
+  it('is nothing without a source, or for a source that gave this graph no relation', () => {
+    expect(findSourceHighlight(null, layout)).toBeNull();
+    expect(findSourceHighlight('elsewhere', layout)).toBeNull();
+  });
+});
 
 describe('what a focus lights up', () => {
   it('lights a node with its neighbours and their edges', () => {

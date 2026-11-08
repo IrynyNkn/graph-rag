@@ -1,4 +1,4 @@
-import type { RetrievedGraph } from '@graph-rag/contracts';
+import type { Citation, RetrievedGraph } from '@graph-rag/contracts';
 import { AnimatePresence, motion } from 'motion/react';
 import { memo, useMemo, type PointerEvent } from 'react';
 import { EASE_OUT } from '../../app/motion';
@@ -6,13 +6,17 @@ import { EMPTY_LAYOUT, layoutFlow } from './flow/layout';
 import { GraphDrawing } from './GraphDrawing';
 import { GraphFocusCard } from './GraphFocusCard';
 import { GraphHeader, GraphLegend } from './GraphChrome';
-import { isStillDrawn } from './graph-focus';
+import { findSourceHighlight, isStillDrawn } from './graph-focus';
 import { useElementSize } from './use-element-size';
 import { useHoverFocus } from './use-hover-focus';
 import './graph.css';
 
 interface GraphViewProps {
   graph: RetrievedGraph | null;
+  /** The sources of the answer on screen, which back up its relations. */
+  citations: Citation[];
+  /** The source the pointer is on, whose relations light up. */
+  sourceChunkId: string | null;
   isSearching: boolean;
   isAnswering: boolean;
 }
@@ -20,6 +24,8 @@ interface GraphViewProps {
 /** Memoised, because the page re-renders for every token of an answer and this has many parts. */
 export const GraphView = memo(function GraphView({
   graph,
+  citations,
+  sourceChunkId,
   isSearching,
   isAnswering,
 }: GraphViewProps) {
@@ -31,6 +37,7 @@ export const GraphView = memo(function GraphView({
   );
   // A graph that changes under a still pointer takes its hovered element away without a mouse leave.
   const focus = layout && hovered && isStillDrawn(hovered, layout) ? hovered : null;
+  const highlight = focus ?? (layout && findSourceHighlight(sourceChunkId, layout));
   const showsInvitation = layout === null && !isSearching;
 
   return (
@@ -41,7 +48,7 @@ export const GraphView = memo(function GraphView({
         <div className="graph-dots is-lit" />
         <GraphDrawing
           layout={layout ?? EMPTY_LAYOUT}
-          focus={focus}
+          highlight={highlight}
           isAnswering={isAnswering}
           onFocus={enter}
           onBlur={leave}
@@ -62,7 +69,13 @@ export const GraphView = memo(function GraphView({
         </AnimatePresence>
         <AnimatePresence>
           {layout && focus && (
-            <GraphFocusCard key="card" focus={focus} layout={layout} panel={size} />
+            <GraphFocusCard
+              key="card"
+              focus={focus}
+              layout={layout}
+              panel={size}
+              citations={citations}
+            />
           )}
         </AnimatePresence>
         <AnimatePresence>{layout && <GraphLegend key="legend" />}</AnimatePresence>

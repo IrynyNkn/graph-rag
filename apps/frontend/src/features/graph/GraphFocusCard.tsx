@@ -1,7 +1,9 @@
+import type { Citation } from '@graph-rag/contracts';
 import { motion } from 'motion/react';
 import { SNAPPY } from '../../app/motion';
 import type { FlowLayout, PlacedEdge, PlacedNode } from './flow/layout';
 import type { Panel } from './flow/grid';
+import { findEdgeQuotes } from './edge-quotes';
 import { placeCard, type GraphFocus } from './graph-focus';
 import { toDisplayName } from './node-names';
 import { useElementSize } from './use-element-size';
@@ -10,10 +12,11 @@ interface GraphFocusCardProps {
   focus: GraphFocus;
   layout: FlowLayout;
   panel: Panel;
+  citations: Citation[];
 }
 
 /** One card that travels from element to element, rather than one per hover. */
-export function GraphFocusCard({ focus, layout, panel }: GraphFocusCardProps) {
+export function GraphFocusCard({ focus, layout, panel, citations }: GraphFocusCardProps) {
   const { ref, size } = useElementSize<HTMLDivElement>();
   const spot = placeCard(focus, layout, panel, size.height);
   const key = focus.kind === 'node' ? focus.node.name : focus.edge.id;
@@ -36,7 +39,7 @@ export function GraphFocusCard({ focus, layout, panel }: GraphFocusCardProps) {
           {focus.kind === 'node' ? (
             <NodeDetails node={focus.node} />
           ) : (
-            <EdgeDetails edge={focus.edge} />
+            <EdgeDetails edge={focus.edge} citations={citations} />
           )}
         </motion.div>
       </div>
@@ -56,7 +59,7 @@ function NodeDetails({ node }: { node: PlacedNode }) {
   );
 }
 
-function EdgeDetails({ edge }: { edge: PlacedEdge }) {
+function EdgeDetails({ edge, citations }: { edge: PlacedEdge; citations: Citation[] }) {
   return (
     <>
       <h3>
@@ -64,6 +67,12 @@ function EdgeDetails({ edge }: { edge: PlacedEdge }) {
       </h3>
       <p className="graph-card-meta">weight {edge.weight.toFixed(2)}</p>
       <p>{[...new Set(edge.relations)].join(', ')}</p>
+      {findEdgeQuotes(edge, citations).map(({ text, documentName }) => (
+        <blockquote key={text} className="graph-card-quote">
+          {text}
+          <cite>{documentName}</cite>
+        </blockquote>
+      ))}
     </>
   );
 }

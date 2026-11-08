@@ -1,5 +1,6 @@
-import type { RetrievedGraph } from '@graph-rag/contracts';
+import type { Citation, RetrievedGraph } from '@graph-rag/contracts';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GraphView } from './GraphView';
 
@@ -66,10 +67,23 @@ describe('GraphView', () => {
     });
   }
 
+  const idle: Omit<ComponentProps<typeof GraphView>, 'graph'> = {
+    isSearching: false,
+    isAnswering: false,
+    citations: [],
+    sourceChunkId: null,
+  };
+
   function renderSized(value: RetrievedGraph | null, isSearching = false, isAnswering = false) {
     const view = render(
-      <GraphView graph={value} isSearching={isSearching} isAnswering={isAnswering} />,
+      <GraphView {...idle} graph={value} isSearching={isSearching} isAnswering={isAnswering} />,
     );
+    measure();
+    return view;
+  }
+
+  function renderWith(props: Partial<typeof idle>) {
+    const view = render(<GraphView {...idle} {...props} graph={graph} />);
     measure();
     return view;
   }
@@ -125,9 +139,48 @@ describe('GraphView', () => {
 
     expect(container.querySelectorAll('.edge-pulse')).toHaveLength(2);
 
-    rerender(<GraphView graph={graph} isSearching={false} isAnswering={false} />);
+    rerender(<GraphView {...idle} graph={graph} />);
 
     expect(container.querySelectorAll('.edge-pulse')).toHaveLength(0);
+  });
+
+  it('lights the relations a source gave and dims the rest, without a card', () => {
+    const { container } = renderWith({ sourceChunkId: 'c1' });
+
+    expect(container.querySelectorAll('.edge.is-lit')).toHaveLength(1);
+    expect(container.querySelectorAll('.edge.is-dimmed')).toHaveLength(1);
+    expect(chip('Search Index').classList).toContain('is-dimmed');
+    expect(chip('Search Team').classList).not.toContain('is-dimmed');
+    expect(container.querySelector('.graph-card')).toBeNull();
+    expect(container.querySelector('.edge-label')).toBeNull();
+  });
+
+  it('dims nothing for a source that gave this graph no relation', () => {
+    const { container } = renderWith({ sourceChunkId: 'elsewhere' });
+
+    expect(container.querySelector('.is-dimmed')).toBeNull();
+  });
+
+  it('quotes the sentence behind a relation in its card', async () => {
+    const citation: Citation = {
+      chunkId: 'c2',
+      documentId: 'd',
+      documentName: 'handbook.txt',
+      text: 'It is big. The Search Team has the Search Index.',
+    };
+    const { container } = renderWith({ citations: [citation] });
+    const quoted = [...container.querySelectorAll('.edge-target')];
+
+    for (const line of quoted) {
+      fireEvent.mouseEnter(line);
+      if (screen.queryByText(/has the Search Index/) !== null) {
+        break;
+      }
+    }
+
+    expect(screen.getByText(/has the Search Index/).querySelector('cite')?.textContent).toBe(
+      'handbook.txt',
+    );
   });
 
   it('explains a node on hover, labels its relations and dims what it is not linked to', async () => {
@@ -182,7 +235,7 @@ describe('GraphView', () => {
     fireEvent.mouseEnter(chip('Owen Blackwood'));
     expect(screen.getByText('Manages the Search Team.')).toBeTruthy();
 
-    rerender(<GraphView graph={{ ...graph, edges: [] }} isSearching={false} isAnswering={false} />);
+    rerender(<GraphView {...idle} graph={{ ...graph, edges: [] }} />);
 
     await waitFor(() => expect(screen.queryByText('Manages the Search Team.')).toBeNull());
   });

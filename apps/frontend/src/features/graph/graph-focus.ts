@@ -11,6 +11,9 @@ const LABEL_LIFT = 19;
 
 export type GraphFocus = { kind: 'node'; node: PlacedNode } | { kind: 'edge'; edge: PlacedEdge };
 
+/** What lights up part of the graph: something in it, or a source of the answer beside it. */
+export type GraphHighlight = GraphFocus | { kind: 'source'; chunkId: string };
+
 export interface RelationLabel extends Point {
   id: string;
   text: string;
@@ -18,21 +21,38 @@ export interface RelationLabel extends Point {
   isCentred: boolean;
 }
 
-export function edgeIsLit(focus: GraphFocus, edge: PlacedEdge): boolean {
-  return focus.kind === 'edge'
-    ? focus.edge === edge
-    : edge.source === focus.node.name || edge.target === focus.node.name;
+export function edgeIsLit(highlight: GraphHighlight, edge: PlacedEdge): boolean {
+  switch (highlight.kind) {
+    case 'edge':
+      return highlight.edge === edge;
+    case 'node':
+      return edge.source === highlight.node.name || edge.target === highlight.node.name;
+    case 'source':
+      return edge.chunkIds.includes(highlight.chunkId);
+  }
+}
+
+/** A source that gave this graph no relation has nothing to light up, and must not dim the rest. */
+export function findSourceHighlight(
+  chunkId: string | null,
+  layout: FlowLayout,
+): GraphHighlight | null {
+  if (chunkId === null) {
+    return null;
+  }
+  const highlight: GraphHighlight = { kind: 'source', chunkId };
+  return layout.edges.some((edge) => edgeIsLit(highlight, edge)) ? highlight : null;
 }
 
 /** A hovered node keeps its neighbours readable, because they are what the hover is asking about. */
-export function findLitNodes(focus: GraphFocus, edges: PlacedEdge[]): Set<string> {
-  if (focus.kind === 'edge') {
-    return new Set([focus.edge.source, focus.edge.target]);
+export function findLitNodes(highlight: GraphHighlight, edges: PlacedEdge[]): Set<string> {
+  if (highlight.kind === 'edge') {
+    return new Set([highlight.edge.source, highlight.edge.target]);
   }
   const linked = edges
-    .filter((edge) => edgeIsLit(focus, edge))
+    .filter((edge) => edgeIsLit(highlight, edge))
     .flatMap((edge) => [edge.source, edge.target]);
-  return new Set([focus.node.name, ...linked]);
+  return new Set(highlight.kind === 'node' ? [highlight.node.name, ...linked] : linked);
 }
 
 export function isStillDrawn(focus: GraphFocus, layout: FlowLayout): boolean {

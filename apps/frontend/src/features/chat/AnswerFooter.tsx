@@ -19,9 +19,10 @@ interface AnswerFooterProps {
   details?: Pick<MessageMetadata, 'timings' | 'models'> | null;
   /** Buttons for the answer, on the same row as the toggles. */
   tools?: ReactNode;
+  onSourceHover: (chunkId: string | null) => void;
 }
 
-export function AnswerFooter({ citations, details, tools }: AnswerFooterProps) {
+export function AnswerFooter({ citations, details, tools, onSourceHover }: AnswerFooterProps) {
   const [open, setOpen] = useState<PanelName | null>(null);
   const timings = details?.timings;
   if (citations.length === 0 && timings === undefined && !tools) {
@@ -46,7 +47,7 @@ export function AnswerFooter({ citations, details, tools }: AnswerFooterProps) {
       <AnimatePresence initial={false}>
         {open !== null && (
           <Panel key={open}>
-            {open === 'sources' && <SourceList citations={citations} />}
+            {open === 'sources' && <SourceList citations={citations} onHover={onSourceHover} />}
             {open === 'details' && timings !== undefined && (
               <AnswerDetails timings={timings} models={details?.models} />
             )}

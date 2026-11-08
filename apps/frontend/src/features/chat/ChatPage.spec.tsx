@@ -13,8 +13,23 @@ import { ChatPage } from './ChatPage';
 
 // The real one has its own spec, and needs a measured panel, which the test DOM does not have.
 vi.mock('../graph/GraphView', () => ({
-  GraphView: ({ graph, isSearching }: { graph: RetrievedGraph | null; isSearching: boolean }) => (
-    <div data-testid="graph" data-searching={isSearching}>
+  GraphView: ({
+    graph,
+    isSearching,
+    citations,
+    sourceChunkId,
+  }: {
+    graph: RetrievedGraph | null;
+    isSearching: boolean;
+    citations: unknown[];
+    sourceChunkId: string | null;
+  }) => (
+    <div
+      data-testid="graph"
+      data-searching={isSearching}
+      data-citations={citations.length}
+      data-source={sourceChunkId ?? ''}
+    >
       {graph?.nodes.map((node) => node.name).join(',') ?? 'no graph'}
     </div>
   ),
@@ -218,6 +233,33 @@ describe('ChatPage', () => {
     fireEvent.click(screen.getByText('Sources (1)'));
     expect(screen.getByText('Alice manages the team.')).toBeTruthy();
     await waitFor(() => expect(screen.queryByText('Searching the graph')).toBeNull());
+  });
+
+  it('tells the graph its sources and which of them the pointer is on', async () => {
+    details = answered;
+    renderPage(`/chat/${ID}`);
+
+    fireEvent.click(await screen.findByText('Sources (1)'));
+    const source = screen.getByText('Alice manages the team.');
+    const panel = screen.getByTestId('graph');
+    expect(panel.dataset.citations).toBe('1');
+
+    fireEvent.mouseEnter(source);
+    expect(panel.dataset.source).toBe(citation.chunkId);
+
+    fireEvent.mouseLeave(source);
+    expect(panel.dataset.source).toBe('');
+  });
+
+  it('lets go of a source when its list closes under the pointer', async () => {
+    details = answered;
+    renderPage(`/chat/${ID}`);
+    fireEvent.click(await screen.findByText('Sources (1)'));
+    fireEvent.mouseEnter(screen.getByText('Alice manages the team.'));
+
+    fireEvent.click(screen.getByText('Sources (1)'));
+
+    await waitFor(() => expect(screen.getByTestId('graph').dataset.source).toBe(''));
   });
 
   it('shows a bolded word in an answer as bold, without its asterisks', async () => {

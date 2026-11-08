@@ -33,6 +33,7 @@ interface TurnEntryProps {
   actions: TurnActions;
   onSelect: (id: number) => void;
   onEdit: (questionId: number | null) => void;
+  onSourceHover: (chunkId: string | null) => void;
 }
 
 /** Memoised, so that a long conversation does not re-render for every token of its last answer. */
@@ -100,7 +101,7 @@ function QuestionPart({ turn, laterTurns, isEditing, actions, onEdit }: TurnEntr
   );
 }
 
-function AnswerPart({ turn, isLast, isEditing, live, actions }: TurnEntryProps) {
+function AnswerPart({ turn, isLast, isEditing, live, actions, onSourceHover }: TurnEntryProps) {
   const { question, answer } = turn;
   const canAskAgain = isLast && !isEditing && question !== null && !actions.isLocked;
   const askAgain = canAskAgain && (
@@ -119,6 +120,7 @@ function AnswerPart({ turn, isLast, isEditing, live, actions }: TurnEntryProps) 
       <AnswerFooter
         citations={answer.metadata?.citations ?? []}
         details={answer.metadata}
+        onSourceHover={onSourceHover}
         tools={
           (stopped || askAgain) && (
             <>

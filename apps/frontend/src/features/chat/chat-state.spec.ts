@@ -10,6 +10,7 @@ import {
   groupIntoTurns,
   isChatEmpty,
   isSameQuestion,
+  selectCitations,
   selectGraph,
 } from './turns';
 
@@ -39,6 +40,40 @@ const question = (id: number): Message => ({
   content: 'Question',
   createdAt: '2026-01-01T00:00:00.000Z',
   metadata: null,
+});
+
+describe('selectCitations', () => {
+  const cited = (id: number, citations: Citation[]): Message => ({
+    ...answer(id, graphOf('a')),
+    metadata: {
+      route: 'knowledge_base',
+      standaloneQuestion: 'Q',
+      graph: graphOf('a'),
+      citations,
+    },
+  });
+
+  it('follows the answer whose graph is on screen', () => {
+    const messages = [cited(2, [citation]), cited(4, [])];
+
+    expect(selectCitations(IDLE_TURN, messages, 2)).toEqual([citation]);
+    expect(selectCitations(IDLE_TURN, messages, null)).toEqual([]);
+  });
+
+  it('follows the running turn while it brings its own graph', () => {
+    const running = { ...startTurn('id', 'Q'), citations: [citation] };
+
+    expect(selectCitations(running, [cited(2, [])], null)).toEqual([citation]);
+  });
+
+  it('stays on the saved answer while the conversation answers', () => {
+    const talking = {
+      ...startTurn('id', 'Q'),
+      analysis: { route: 'conversation' as const, standaloneQuestion: 'Q' },
+    };
+
+    expect(selectCitations(talking, [cited(2, [citation])], null)).toEqual([citation]);
+  });
 });
 
 describe('isSameQuestion', () => {
